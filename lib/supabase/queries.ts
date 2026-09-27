@@ -214,39 +214,50 @@ function toOrderWithClient(raw: OrderWithRelations): OrderWithClient {
 /* Dashboard                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export async function getDashboardData(pressingId: string): Promise<DashboardData> {
+export async function getDashboardData(
+  pressingId: string,
+): Promise<DashboardData> {
   const { db } = await getContext();
   const today = startOfToday();
 
-  const [todayRes, readyRes, processingRes, weekRes, toDeliverRes] = await Promise.all([
-    db
-      .from("orders")
-      .select("id, total, payment_status, amount_paid, created_at, payment_method")
-      .eq("pressing_id", pressingId)
-      .gte("created_at", today),
-    db
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("pressing_id", pressingId)
-      .eq("status", ORDER_STATUS.READY),
-    db
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("pressing_id", pressingId)
-      .eq("status", ORDER_STATUS.IN_PROCESSING),
-    db
-      .from("orders")
-      .select("id, total, payment_status, amount_paid, created_at, payment_method")
-      .eq("pressing_id", pressingId)
-      .gte("created_at", startOfDaysAgo(TREND_WINDOW_DAYS + 1)),
-    db
-      .from("orders")
-      .select("*, client:clients(id, full_name, phone), order_items(id)")
-      .eq("pressing_id", pressingId)
-      .in("status", [ORDER_STATUS.READY, ORDER_STATUS.IN_PROCESSING, ORDER_STATUS.PICKED_UP])
-      .order("created_at", { ascending: false })
-      .limit(5),
-  ]);
+  const [todayRes, readyRes, processingRes, weekRes, toDeliverRes] =
+    await Promise.all([
+      db
+        .from("orders")
+        .select(
+          "id, total, payment_status, amount_paid, created_at, payment_method",
+        )
+        .eq("pressing_id", pressingId)
+        .gte("created_at", today),
+      db
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("pressing_id", pressingId)
+        .eq("status", ORDER_STATUS.READY),
+      db
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("pressing_id", pressingId)
+        .eq("status", ORDER_STATUS.IN_PROCESSING),
+      db
+        .from("orders")
+        .select(
+          "id, total, payment_status, amount_paid, created_at, payment_method",
+        )
+        .eq("pressing_id", pressingId)
+        .gte("created_at", startOfDaysAgo(TREND_WINDOW_DAYS + 1)),
+      db
+        .from("orders")
+        .select("*, client:clients(id, full_name, phone), order_items(id)")
+        .eq("pressing_id", pressingId)
+        .in("status", [
+          ORDER_STATUS.READY,
+          ORDER_STATUS.IN_PROCESSING,
+          ORDER_STATUS.PICKED_UP,
+        ])
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
 
   const todayOrders = todayRes.data ?? [];
   const weekOrders = weekRes.data ?? [];
@@ -264,7 +275,8 @@ export async function getDashboardData(pressingId: string): Promise<DashboardDat
 
   if (previous.length >= MIN_SAMPLES_FOR_TREND) {
     const dailyAverage =
-      previous.reduce((sum, o) => sum + (o.amount_paid ?? 0), 0) / TREND_WINDOW_DAYS;
+      previous.reduce((sum, o) => sum + (o.amount_paid ?? 0), 0) /
+      TREND_WINDOW_DAYS;
     if (dailyAverage > 0) {
       const raw = ((revenueToday - dailyAverage) / dailyAverage) * 100;
       // Borne a +/-999 % : au-dela, la comparaison n'a plus de sens affichable.
@@ -297,14 +309,36 @@ export interface OrderFilters {
  * (`,` `(` `)` `.` `*`). Sans cela, une recherche utilisateur comme
  * "Kone, Ana" produirait une erreur PGRST100, voire un filtre elargi.
  */
+/**
+ * Nettoie les termes de recherche pour éviter toute injection SQL.
+ * Supprime tous les caractères spéciaux qui pourraient être utilisés pour contourner les filtres.
+ */
 function sanitizeFilterTerm(input: string): string {
-  return input.replace(/[,().*\\]/g, " ").trim();
+  // Supprime TOUS les caractères non alphanumériques/spaces/tirets/apos
+  return input
+    .replace(/[^a-zA-Z0-9\s '-]/g, " ")
+    .trim()
+    .slice(0, 100); // Limite la longueur
+}
+
+/**
+ * Valide qu'un UUID est bien formaté (empêche toute injection dans les IN clauses)
+ */
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
 }
 
 export async function getOrders(
   pressingId: string,
   { status = "all", search = "", limit = 50 }: OrderFilters = {},
 ): Promise<OrderWithClient[]> {
+  // Validation préalable du pressingId (doit être un UUID valide)
+  if (!isValidUUID(pressingId)) {
+    throw new Error("Invalid pressing ID");
+  }
+
   const { db } = await getContext();
 
   let query = db
@@ -312,9 +346,12 @@ export async function getOrders(
     .select("*, client:clients(id, full_name, phone), order_items(id)")
     .eq("pressing_id", pressingId)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(Math.min(limit, 100)); // Limite la limite à 100 maximum
 
-  if (status !== "all") query = query.eq("status", status);
+  // Validation stricte du statut (n'autorise que les valeurs définies)
+  if (status !== "all" && isOrderStatus(status)) {
+    query = query.eq("status", status);
+  }
 
   const term = sanitizeFilterTerm(search);
   if (term) {
@@ -328,34 +365,56 @@ export async function getOrders(
       .eq("pressing_id", pressingId)
       .ilike("full_name", `%${term}%`);
 
-    const clientIds = (matching ?? []).map((client) => client.id);
-    const byNumber = `order_number.ilike.%${term}%`;
+    // NE prend que les UUIDs valides dans la liste des clientIds (sécurité absolue)
+    const clientIds = (matching ?? [])
+      .map((client) => client.id)
+      .filter(isValidUUID);
+    const byNumber = `order_number.ilike.%${term.replace(/%/g, "\\%")}%`;
 
-    query = query.or(
-      clientIds.length > 0 ? `${byNumber},client_id.in.(${clientIds.join(",")})` : byNumber,
-    );
+    if (clientIds.length > 0) {
+      // Utilise la syntaxe PostgREST correcte et sécurisée pour les IN clauses
+      query = query.or(byNumber).in("client_id", clientIds);
+    } else {
+      query = query.or(byNumber);
+    }
   }
 
   const { data } = await query;
   return ((data ?? []) as OrderWithRelations[]).map(toOrderWithClient);
 }
 
-export async function getOrderDetail(orderId: string): Promise<OrderDetail | null> {
-  const { db } = await getContext();
+export async function getOrderDetail(
+  orderId: string,
+): Promise<OrderDetail | null> {
+  const { db, pressing } = await getContext();
+  if (!pressing) return null;
 
+  // Validation stricte des UUIDs pour éviter les accès non autorisés
+  function isValidUUID(uuid: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  }
+
+  if (!isValidUUID(orderId)) return null;
+
+  // Vérification OBLIGATOIRE que la commande appartient bien au pressing de l'utilisateur
   const { data } = await db
     .from("orders")
     .select(
       "*, client:clients(id, full_name, phone), order_items(*, article:articles(image_url))",
     )
     .eq("id", orderId)
+    .eq("pressing_id", pressing.id)
     .maybeSingle();
 
   if (!data) return null;
 
   const { order_items, client, ...order } = data as OrderRow & {
     client: Pick<ClientRow, "id" | "full_name" | "phone"> | null;
-    order_items: (OrderItemRow & { article: Pick<ArticleRow, "image_url"> | null })[] | null;
+    order_items:
+      | (OrderItemRow & { article: Pick<ArticleRow, "image_url"> | null })[]
+      | null;
   };
 
   return {
@@ -367,7 +426,9 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
 }
 
 /** Compte les commandes du mois courant (indicateur de l'en-tete). */
-export async function getMonthlyOrderCount(pressingId: string): Promise<number> {
+export async function getMonthlyOrderCount(
+  pressingId: string,
+): Promise<number> {
   const { db } = await getContext();
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -386,7 +447,10 @@ export async function getMonthlyOrderCount(pressingId: string): Promise<number> 
 /* Clients & articles                                                           */
 /* -------------------------------------------------------------------------- */
 
-export async function getClients(pressingId: string, search = ""): Promise<ClientRow[]> {
+export async function getClients(
+  pressingId: string,
+  search = "",
+): Promise<ClientRow[]> {
   const { db } = await getContext();
 
   let query = db
@@ -398,9 +462,7 @@ export async function getClients(pressingId: string, search = ""): Promise<Clien
 
   const term = sanitizeFilterTerm(search);
   if (term) {
-    query = query.or(
-      `full_name.ilike.%${term}%,phone.ilike.%${term}%`,
-    );
+    query = query.or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`);
   }
 
   const { data } = await query.limit(50);
@@ -428,7 +490,10 @@ export async function getArticles(
 }
 
 /** Une commande est comptabilisee dans le CA si de l'argent a ete encaisse. */
-function isPaid(order: { payment_status: string; amount_paid: number | null }): boolean {
+function isPaid(order: {
+  payment_status: string;
+  amount_paid: number | null;
+}): boolean {
   return (
     order.payment_status === "paid" ||
     (order.payment_status === "partial" && (order.amount_paid ?? 0) > 0)
@@ -480,10 +545,28 @@ export async function getCatalogue(
 }
 
 /** Un article precis, meme desactive : necessaire pour l'ecran d'edition. */
-export async function getArticle(articleId: string): Promise<ArticleRow | null> {
-  const { db } = await getContext();
+export async function getArticle(
+  articleId: string,
+): Promise<ArticleRow | null> {
+  const { db, pressing } = await getContext();
+  if (!pressing) return null;
 
-  const { data } = await db.from("articles").select("*").eq("id", articleId).maybeSingle();
+  // Validation stricte des UUIDs pour éviter les accès non autorisés
+  function isValidUUID(uuid: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  }
+
+  if (!isValidUUID(articleId)) return null;
+
+  // Vérification OBLIGATOIRE que l'article appartient bien au pressing de l'utilisateur
+  const { data } = await db
+    .from("articles")
+    .select("*")
+    .eq("id", articleId)
+    .eq("pressing_id", pressing.id)
+    .maybeSingle();
 
   return data ?? null;
 }
@@ -514,9 +597,11 @@ export function groupByCategory(
     else groups.set(article.category, [article]);
   }
 
-  return [...groups.entries()].map(([category, items]) => ({ category, items }));
+  return [...groups.entries()].map(([category, items]) => ({
+    category,
+    items,
+  }));
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* Clients                                                                      */
@@ -572,14 +657,21 @@ export async function getClientSummaries(
     query,
     db
       .from("orders")
-      .select("client_id, total, amount_paid, payment_status, status, created_at")
+      .select(
+        "client_id, total, amount_paid, payment_status, status, created_at",
+      )
       .eq("pressing_id", pressingId)
       .neq("status", ORDER_STATUS.CANCELLED)
       .order("created_at", { ascending: false })
       .limit(CLIENT_AGGREGATE_LIMIT),
   ]);
 
-  type Aggregate = { count: number; revenue: number; outstanding: number; last: string | null };
+  type Aggregate = {
+    count: number;
+    revenue: number;
+    outstanding: number;
+    last: string | null;
+  };
   const byClient = new Map<string, Aggregate>();
 
   for (const row of ordersRes.data ?? []) {
@@ -610,7 +702,6 @@ export async function getClientSummaries(
   });
 }
 
-
 export interface ClientDetail {
   client: ClientRow;
   /** 30 dernieres commandes, la plus recente d'abord. */
@@ -626,10 +717,28 @@ export interface ClientDetail {
 }
 
 /** Fiche complete d'un client : coordonnees, historique, forfaits, soldes. */
-export async function getClientDetail(clientId: string): Promise<ClientDetail | null> {
-  const { db } = await getContext();
+export async function getClientDetail(
+  clientId: string,
+): Promise<ClientDetail | null> {
+  const { db, pressing } = await getContext();
+  if (!pressing) return null;
 
-  const { data: client } = await db.from("clients").select("*").eq("id", clientId).maybeSingle();
+  // Validation stricte des UUIDs pour éviter les accès non autorisés
+  function isValidUUID(uuid: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  }
+
+  if (!isValidUUID(clientId)) return null;
+
+  // Vérification OBLIGATOIRE que le client appartient bien au pressing de l'utilisateur
+  const { data: client } = await db
+    .from("clients")
+    .select("*")
+    .eq("id", clientId)
+    .eq("pressing_id", pressing.id)
+    .maybeSingle();
 
   if (!client) return null;
 
@@ -647,8 +756,12 @@ export async function getClientDetail(clientId: string): Promise<ClientDetail | 
       .order("created_at", { ascending: false }),
   ]);
 
-  const orders = ((ordersRes.data ?? []) as OrderWithRelations[]).map(toOrderWithClient);
-  const billable = orders.filter((order) => order.status !== ORDER_STATUS.CANCELLED);
+  const orders = ((ordersRes.data ?? []) as OrderWithRelations[]).map(
+    toOrderWithClient,
+  );
+  const billable = orders.filter(
+    (order) => order.status !== ORDER_STATUS.CANCELLED,
+  );
 
   return {
     client,
@@ -656,16 +769,18 @@ export async function getClientDetail(clientId: string): Promise<ClientDetail | 
     packs: packsRes.data ?? [],
     stats: {
       ordersCount: billable.length,
-      revenue: orders.filter(isPaid).reduce((sum, order) => sum + (order.amount_paid ?? 0), 0),
+      revenue: orders
+        .filter(isPaid)
+        .reduce((sum, order) => sum + (order.amount_paid ?? 0), 0),
       outstanding: billable.reduce(
-        (sum, order) => sum + Math.max(order.total - (order.amount_paid ?? 0), 0),
+        (sum, order) =>
+          sum + Math.max(order.total - (order.amount_paid ?? 0), 0),
         0,
       ),
       lastOrderAt: orders[0]?.created_at ?? null,
     },
   };
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* Caisse                                                                       */
@@ -699,7 +814,9 @@ export interface CashRegister {
  * un reglement fractionne se retrouvait integralement attribue au dernier
  * moyen utilise.
  */
-export async function getCashRegister(pressingId: string): Promise<CashRegister> {
+export async function getCashRegister(
+  pressingId: string,
+): Promise<CashRegister> {
   const { db } = await getContext();
 
   const [paymentsRes, unpaidRes] = await Promise.all([
@@ -727,9 +844,14 @@ export async function getCashRegister(pressingId: string): Promise<CashRegister>
   // resout en une seule requete pour toutes les commandes concernees, plutot
   // qu'un embed imbrique dont le typage est fragile.
   const orderIds = [
-    ...new Set(payments.map((p) => p.order_id).filter((id): id is string => Boolean(id))),
+    ...new Set(
+      payments.map((p) => p.order_id).filter((id): id is string => Boolean(id)),
+    ),
   ];
-  const labels = new Map<string, { order_number: string; client_name: string | null }>();
+  const labels = new Map<
+    string,
+    { order_number: string; client_name: string | null }
+  >();
 
   if (orderIds.length > 0) {
     const { data: rows } = await db
@@ -738,7 +860,10 @@ export async function getCashRegister(pressingId: string): Promise<CashRegister>
       .in("id", orderIds);
 
     for (const row of rows ?? []) {
-      const raw = row.client as { full_name: string }[] | { full_name: string } | null;
+      const raw = row.client as
+        | { full_name: string }[]
+        | { full_name: string }
+        | null;
       const client = Array.isArray(raw) ? (raw[0] ?? null) : raw;
       labels.set(row.id, {
         order_number: row.order_number,
@@ -755,7 +880,9 @@ export async function getCashRegister(pressingId: string): Promise<CashRegister>
     byMethodMap.set(payment.method, entry);
   }
 
-  const outstandingOrders = ((unpaidRes.data ?? []) as OrderWithRelations[]).map(toOrderWithClient);
+  const outstandingOrders = (
+    (unpaidRes.data ?? []) as OrderWithRelations[]
+  ).map(toOrderWithClient);
 
   return {
     collectedToday: payments.reduce((sum, payment) => sum + payment.amount, 0),
@@ -770,7 +897,8 @@ export async function getCashRegister(pressingId: string): Promise<CashRegister>
     })),
     outstanding: {
       total: outstandingOrders.reduce(
-        (sum, order) => sum + Math.max(order.total - (order.amount_paid ?? 0), 0),
+        (sum, order) =>
+          sum + Math.max(order.total - (order.amount_paid ?? 0), 0),
         0,
       ),
       count: outstandingOrders.length,
@@ -778,7 +906,6 @@ export async function getCashRegister(pressingId: string): Promise<CashRegister>
     },
   };
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* Livraisons & tournees                                                        */
@@ -799,7 +926,10 @@ export interface DeliveryBoard {
   /** Collectes a domicile restant a effectuer. */
   toCollect: OrderWithClient[];
   /** Missions affectees a un livreur (table `deliveries`). */
-  missions: (DeliveryRow & { order_number: string | null; client_name: string | null })[];
+  missions: (DeliveryRow & {
+    order_number: string | null;
+    client_name: string | null;
+  })[];
   /** Sous-ensemble de `toDeliver` pret depuis plus de 24 h. */
   lateOrders: OrderWithClient[];
 }
@@ -812,7 +942,9 @@ export interface DeliveryBoard {
  * donnees existantes. Les missions de `deliveries` sont ajoutees par-dessus
  * quand elles existent, pour l'affectation a un livreur.
  */
-export async function getDeliveryBoard(pressingId: string): Promise<DeliveryBoard> {
+export async function getDeliveryBoard(
+  pressingId: string,
+): Promise<DeliveryBoard> {
   const { db } = await getContext();
 
   const [toDeliverRes, toCollectRes, missionsRes] = await Promise.all([
@@ -828,7 +960,11 @@ export async function getDeliveryBoard(pressingId: string): Promise<DeliveryBoar
       .select("*, client:clients(id, full_name, phone), order_items(id)")
       .eq("pressing_id", pressingId)
       .eq("pickup_type", "home_pickup")
-      .in("status", [ORDER_STATUS.PENDING, ORDER_STATUS.PICKUP_SCHEDULED, ORDER_STATUS.PICKED_UP])
+      .in("status", [
+        ORDER_STATUS.PENDING,
+        ORDER_STATUS.PICKUP_SCHEDULED,
+        ORDER_STATUS.PICKED_UP,
+      ])
       .order("pickup_scheduled_at", { ascending: true, nullsFirst: false })
       .limit(20),
     db
@@ -840,13 +976,20 @@ export async function getDeliveryBoard(pressingId: string): Promise<DeliveryBoar
       .limit(40),
   ]);
 
-  const toDeliver = ((toDeliverRes.data ?? []) as OrderWithRelations[]).map(toOrderWithClient);
-  const toCollect = ((toCollectRes.data ?? []) as OrderWithRelations[]).map(toOrderWithClient);
+  const toDeliver = ((toDeliverRes.data ?? []) as OrderWithRelations[]).map(
+    toOrderWithClient,
+  );
+  const toCollect = ((toCollectRes.data ?? []) as OrderWithRelations[]).map(
+    toOrderWithClient,
+  );
   const missions = missionsRes.data ?? [];
 
   // Numero de commande et client des missions, resolus en une requete.
   const orderIds = [...new Set(missions.map((mission) => mission.order_id))];
-  const labels = new Map<string, { order_number: string; client_name: string | null }>();
+  const labels = new Map<
+    string,
+    { order_number: string; client_name: string | null }
+  >();
 
   if (orderIds.length > 0) {
     const { data: rows } = await db
@@ -855,7 +998,10 @@ export async function getDeliveryBoard(pressingId: string): Promise<DeliveryBoar
       .in("id", orderIds);
 
     for (const row of rows ?? []) {
-      const raw = row.client as { full_name: string }[] | { full_name: string } | null;
+      const raw = row.client as
+        | { full_name: string }[]
+        | { full_name: string }
+        | null;
       const client = Array.isArray(raw) ? (raw[0] ?? null) : raw;
       labels.set(row.id, {
         order_number: row.order_number,
@@ -875,11 +1021,12 @@ export async function getDeliveryBoard(pressingId: string): Promise<DeliveryBoar
       client_name: labels.get(mission.order_id)?.client_name ?? null,
     })),
     lateOrders: toDeliver.filter(
-      (order) => order.status === ORDER_STATUS.READY && new Date(order.created_at).getTime() < lateThreshold,
+      (order) =>
+        order.status === ORDER_STATUS.READY &&
+        new Date(order.created_at).getTime() < lateThreshold,
     ),
   };
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* Rapports                                                                     */
@@ -919,7 +1066,12 @@ export interface ReportData {
   /** Reste a encaisser sur les commandes de la periode. */
   outstanding: number;
   topArticles: { name: string; quantity: number; revenue: number }[];
-  topClients: { id: string; full_name: string; revenue: number; orders: number }[];
+  topClients: {
+    id: string;
+    full_name: string;
+    revenue: number;
+    orders: number;
+  }[];
   byMethod: { method: string; total: number; count: number }[];
   byStatus: { status: OrderStatus; count: number }[];
 }
@@ -940,7 +1092,9 @@ export async function getReports(pressingId: string): Promise<ReportData> {
 
   const { data: orderRows } = await db
     .from("orders")
-    .select("id, status, payment_status, total, amount_paid, payment_method, created_at, client_id")
+    .select(
+      "id, status, payment_status, total, amount_paid, payment_method, created_at, client_id",
+    )
     .eq("pressing_id", pressingId)
     .gte("created_at", startOfDaysAgo(REPORT_WINDOW_DAYS - 1))
     .order("created_at", { ascending: false })
@@ -949,7 +1103,12 @@ export async function getReports(pressingId: string): Promise<ReportData> {
   const orders = orderRows ?? [];
   const orderIds = orders.map((order) => order.id);
 
-  let items: { order_id: string; article_name: string; quantity: number; unit_price: number }[] = [];
+  let items: {
+    order_id: string;
+    article_name: string;
+    quantity: number;
+    unit_price: number;
+  }[] = [];
   if (orderIds.length > 0) {
     const { data } = await db
       .from("order_items")
@@ -964,9 +1123,12 @@ export async function getReports(pressingId: string): Promise<ReportData> {
     .eq("pressing_id", pressingId)
     .limit(500);
 
-  const clientNames = new Map((clientRows ?? []).map((client) => [client.id, client.full_name]));
-  const billable = orders.filter((order) => order.status !== ORDER_STATUS.CANCELLED);
-
+  const clientNames = new Map(
+    (clientRows ?? []).map((client) => [client.id, client.full_name]),
+  );
+  const billable = orders.filter(
+    (order) => order.status !== ORDER_STATUS.CANCELLED,
+  );
 
   // -- Serie journaliere ---------------------------------------------------
   const days: ReportDay[] = [];
@@ -979,8 +1141,14 @@ export async function getReports(pressingId: string): Promise<ReportData> {
 
     const day: ReportDay = {
       key: localDayKey(date),
-      label: offset === 0 ? "Auj." : date.toLocaleDateString("fr-FR", { weekday: "short" }),
-      shortDate: date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+      label:
+        offset === 0
+          ? "Auj."
+          : date.toLocaleDateString("fr-FR", { weekday: "short" }),
+      shortDate: date.toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+      }),
       revenue: 0,
       orders: 0,
       isToday: offset === 0,
@@ -1026,7 +1194,10 @@ export async function getReports(pressingId: string): Promise<ReportData> {
     methodEntry.count += 1;
     methodTotals.set(method, methodEntry);
 
-    const clientEntry = clientTotals.get(order.client_id) ?? { revenue: 0, orders: 0 };
+    const clientEntry = clientTotals.get(order.client_id) ?? {
+      revenue: 0,
+      orders: 0,
+    };
     clientEntry.revenue += paid;
     clientEntry.orders += 1;
     clientTotals.set(order.client_id, clientEntry);
@@ -1034,11 +1205,17 @@ export async function getReports(pressingId: string): Promise<ReportData> {
 
   // Les articles ne sont comptes que sur les commandes facturables : une
   // commande annulee ne doit pas gonfler le classement des articles lavees.
-  const articleTotals = new Map<string, { quantity: number; revenue: number }>();
+  const articleTotals = new Map<
+    string,
+    { quantity: number; revenue: number }
+  >();
   for (const item of items) {
     if (!billableIds.has(item.order_id)) continue;
 
-    const entry = articleTotals.get(item.article_name) ?? { quantity: 0, revenue: 0 };
+    const entry = articleTotals.get(item.article_name) ?? {
+      quantity: 0,
+      revenue: 0,
+    };
     entry.quantity += item.quantity;
     entry.revenue += item.quantity * item.unit_price;
     articleTotals.set(item.article_name, entry);
@@ -1048,14 +1225,19 @@ export async function getReports(pressingId: string): Promise<ReportData> {
     days,
     totalRevenue,
     totalOrders: billable.length,
-    averageBasket: billable.length > 0 ? Math.round(totalRevenue / billable.length) : 0,
+    averageBasket:
+      billable.length > 0 ? Math.round(totalRevenue / billable.length) : 0,
     outstanding,
     topArticles: [...articleTotals.entries()]
       .map(([name, value]) => ({ name, ...value }))
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 5),
     topClients: [...clientTotals.entries()]
-      .map(([id, value]) => ({ id, full_name: clientNames.get(id) ?? "Client supprimé", ...value }))
+      .map(([id, value]) => ({
+        id,
+        full_name: clientNames.get(id) ?? "Client supprimé",
+        ...value,
+      }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5),
     byMethod: [...methodTotals.entries()]
@@ -1103,7 +1285,9 @@ const NOTIFICATION_LOG_LIMIT = 60;
  * compte en memoire plutot que d'empiler trois `count()` sur la meme table —
  * le volume reste tres faible (une ligne par evenement de commande).
  */
-export async function getNotificationCounts(pressingId: string): Promise<NotificationCounts> {
+export async function getNotificationCounts(
+  pressingId: string,
+): Promise<NotificationCounts> {
   const { db } = await getContext();
 
   const { data } = await db
@@ -1117,7 +1301,8 @@ export async function getNotificationCounts(pressingId: string): Promise<Notific
   for (const row of data ?? []) {
     if (row.status === "sent") counts.sent += 1;
     else if (row.status === "failed") counts.failed += 1;
-    else if (row.status === "queued" || row.status === "sending") counts.queued += 1;
+    else if (row.status === "queued" || row.status === "sending")
+      counts.queued += 1;
   }
 
   return counts;
@@ -1131,7 +1316,9 @@ export async function getNotificationCounts(pressingId: string): Promise<Notific
  * rendu les colonnes internes de la file (identifiants de passerelle, charges
  * utiles brutes).
  */
-export async function getNotifications(pressingId: string): Promise<NotificationLogEntry[]> {
+export async function getNotifications(
+  pressingId: string,
+): Promise<NotificationLogEntry[]> {
   const { db } = await getContext();
 
   const { data } = await db
@@ -1145,5 +1332,3 @@ export async function getNotifications(pressingId: string): Promise<Notification
 
   return data ?? [];
 }
-
-

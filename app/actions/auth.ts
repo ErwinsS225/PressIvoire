@@ -44,16 +44,14 @@ export interface ActionState {
  */
 const ERROR_MESSAGES: Record<string, string> = {
   // Authentification — libelles exacts renvoyes par GoTrue.
-  "Invalid login credentials":
-    "Email, téléphone ou mot de passe incorrect.",
+  "Invalid login credentials": "Email, téléphone ou mot de passe incorrect.",
   "Email not confirmed": "Confirmez votre email avant de vous connecter.",
   "User already registered": "Un compte existe déjà avec cet email.",
   "Password should be at least":
     "Mot de passe trop court (8 caractères et 1 chiffre minimum).",
   "New password should be different":
     "Le nouveau mot de passe doit être différent de l'ancien.",
-  "Auth session missing":
-    "Votre session a expiré. Reconnectez-vous.",
+  "Auth session missing": "Votre session a expiré. Reconnectez-vous.",
   "Token has expired or is invalid":
     "Ce lien a expiré. Demandez-en un nouveau.",
 
@@ -76,7 +74,7 @@ const ERROR_MESSAGES: Record<string, string> = {
    * affichait « Email, téléphone ou mot de passe incorrect » et l'utilisateur
    * retapait son mot de passe alors que rien n'aurait jamais abouti.
    */
-  "phone_provider_disabled":
+  phone_provider_disabled:
     "La connexion par téléphone n'est pas activée sur ce projet. Utilisez votre email.",
   "Phone logins are disabled":
     "La connexion par téléphone n'est pas activée sur ce projet. Utilisez votre email.",
@@ -90,7 +88,18 @@ const ERROR_MESSAGES: Record<string, string> = {
  * l'hote de developpement plutot que de produire un lien relatif invalide.
  */
 function getAppUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const url = process.env.NEXT_PUBLIC_APP_URL;
+  if (!url) {
+    // En developpement, on peut se rabattre sur localhost.
+    if (process.env.NODE_ENV === "development") {
+      return "http://localhost:3000";
+    }
+    // En production, c'est une erreur de configuration critique.
+    throw new Error(
+      "La variable d'environnement NEXT_PUBLIC_APP_URL est manquante. Le lien de reinitialisation ne peut pas etre genere.",
+    );
+  }
+  return url.replace(/\/$/, "");
 }
 
 /** Traduit une erreur Supabase en message comprehensible, sans rien divulguer. */
@@ -102,11 +111,16 @@ function translateError(message: string): string {
 }
 
 /** { field: [msg, ...] } -> { field: msg } : on n'affiche que le premier. */
-function firstErrors(flatten: Record<string, string[] | undefined>): Record<string, string> {
+function firstErrors(
+  flatten: Record<string, string[] | undefined>,
+): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(flatten).filter(
-      (entry): entry is [string, string[]] => Array.isArray(entry[1]) && entry[1].length > 0,
-    ).map(([key, messages]) => [key, messages[0]]),
+    Object.entries(flatten)
+      .filter(
+        (entry): entry is [string, string[]] =>
+          Array.isArray(entry[1]) && entry[1].length > 0,
+      )
+      .map(([key, messages]) => [key, messages[0]]),
   );
 }
 
@@ -220,9 +234,10 @@ export async function signUp(
   }
 
   revalidatePath("/", "layout");
-  redirect(values.role === "owner" ? "/onboarding/pressing" : "/onboarding/client");
+  redirect(
+    values.role === "owner" ? "/onboarding/pressing" : "/onboarding/client",
+  );
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* Mot de passe oublié                                                          */
@@ -232,17 +247,22 @@ export async function requestPasswordReset(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const parsed = forgotPasswordSchema.safeParse({ email: formData.get("email") });
+  const parsed = forgotPasswordSchema.safeParse({
+    email: formData.get("email"),
+  });
   if (!parsed.success) {
     return { fieldErrors: firstErrors(parsed.error.flatten().fieldErrors) };
   }
 
   const supabase = createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    // Le lien ouvre `/reset-password`, qui exige le mot de passe actuel en plus
-    // du jeton : deux canaux independants pour un meme changement.
-    redirectTo: `${getAppUrl()}/reset-password`,
-  });
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    {
+      // Le lien ouvre `/reset-password`, qui exige le mot de passe actuel en plus
+      // du jeton : deux canaux independants pour un meme changement.
+      redirectTo: `${getAppUrl()}/reset-password`,
+    },
+  );
 
   if (error) return { error: translateError(error.message) };
 
@@ -291,7 +311,8 @@ export async function updatePassword(
 
   if (!user?.email) {
     return {
-      error: "Lien de reinitialisation invalide ou expire. Demandez-en un nouveau.",
+      error:
+        "Lien de reinitialisation invalide ou expire. Demandez-en un nouveau.",
     };
   }
 
@@ -309,7 +330,9 @@ export async function updatePassword(
     };
   }
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
   if (error) return { error: translateError(error.message) };
 
   revalidatePath("/", "layout");
@@ -326,4 +349,3 @@ export async function signOut(): Promise<void> {
   revalidatePath("/", "layout");
   redirect("/login");
 }
-

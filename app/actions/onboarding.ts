@@ -79,9 +79,10 @@ export async function completeOnboarding(
         .map(([key, messages]) => [key, (messages as string[])[0]]),
     );
     return {
-      fieldErrors: Object.keys(fieldErrors).length > 0
-        ? fieldErrors
-        : { _form: parsed.error.issues[0]?.message ?? "Données invalides." },
+      fieldErrors:
+        Object.keys(fieldErrors).length > 0
+          ? fieldErrors
+          : { _form: parsed.error.issues[0]?.message ?? "Données invalides." },
     };
   }
 
@@ -131,7 +132,9 @@ export async function completeOnboarding(
 }
 
 /** Telechargement du logo de l'etape 1. Retourne l'URL publique. */
-export async function uploadLogo(formData: FormData): Promise<{ url?: string; error?: string }> {
+export async function uploadLogo(
+  formData: FormData,
+): Promise<{ url?: string; error?: string }> {
   const file = formData.get("logo");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -146,12 +149,15 @@ export async function uploadLogo(formData: FormData): Promise<{ url?: string; er
     return { error: "Format accepte : JPEG, PNG ou WebP." };
   }
 
-  const { userId } = await getContext();
+  const { userId, pressing } = await getContext();
   if (!userId) return { error: "Session expirée." };
 
   const supabase = createClient();
   const extension = file.type.split("/")[1].replace("jpeg", "jpg");
-  const path = `onboarding/${userId}/logo.${extension}`;
+  // Respecte la convention RLS : <pressing_id>/... pour isoler les tenants
+  const path = pressing
+    ? `${pressing.id}/onboarding/logo.${extension}`
+    : `onboarding/${userId}/logo.${extension}`;
 
   const { error } = await supabase.storage
     .from("pressing-assets")
@@ -160,6 +166,7 @@ export async function uploadLogo(formData: FormData): Promise<{ url?: string; er
   if (error) return { error: error.message };
 
   return {
-    url: supabase.storage.from("pressing-assets").getPublicUrl(path).data.publicUrl,
+    url: supabase.storage.from("pressing-assets").getPublicUrl(path).data
+      .publicUrl,
   };
 }
