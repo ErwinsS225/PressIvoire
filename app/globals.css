@@ -1,0 +1,508 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PressingPro — palette : vert profond #0F766E + orange #F97316 */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 175 40% 8%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 175 40% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 175 40% 8%;
+
+    /* vert profond */
+    --primary: 175 77% 26%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 175 40% 95%;
+    --secondary-foreground: 175 60% 18%;
+
+    --muted: 160 20% 95%;
+    --muted-foreground: 175 10% 42%;
+
+    --accent: 25 95% 53%; /* orange */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 175 25% 88%;
+    --input: 175 25% 88%;
+    --ring: 175 77% 26%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 175 40% 7%;
+    --foreground: 160 20% 96%;
+
+    --card: 175 35% 10%;
+    --card-foreground: 160 20% 96%;
+
+    --popover: 175 35% 8%;
+    --popover-foreground: 160 20% 96%;
+
+    --primary: 175 77% 45%;
+    --primary-foreground: 175 60% 10%;
+
+    --secondary: 175 25% 18%;
+    --secondary-foreground: 160 20% 92%;
+
+    --muted: 175 25% 16%;
+    --muted-foreground: 160 12% 62%;
+
+    --accent: 25 95% 55%;
+    --accent-foreground: 175 60% 10%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 175 25% 20%;
+    --input: 175 25% 20%;
+    --ring: 175 77% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  /* Contrastes renforces : caissiers sous veranda, livreurs en plein soleil */
+  .text-safe {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0rem);
+  }
+
+  /* --- Classes de l'interface mobile (cf. maquette) --- */
+
+  /* Barre de navigation translucide sur le contenu qui defile */
+  .glass {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.8);
+  }
+
+  /* Masque la barre de scroll (onglets de filtres, carrousels) */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Apparition en cascade : le contenu est masque jusqu'a l'animation */
+  .stagger-1,
+  .stagger-2,
+  .stagger-3,
+  .stagger-4,
+  .stagger-5,
+  .stagger-6 {
+    opacity: 0;
+    animation-fill-mode: forwards;
+  }
+  .stagger-1 {
+    animation-delay: 0.05s;
+  }
+  .stagger-2 {
+    animation-delay: 0.1s;
+  }
+  .stagger-3 {
+    animation-delay: 0.15s;
+  }
+  .stagger-4 {
+    animation-delay: 0.2s;
+  }
+  .stagger-5 {
+    animation-delay: 0.25s;
+  }
+  .stagger-6 {
+    animation-delay: 0.3s;
+  }
+
+  /* Elevation douce au survol (cartes, lignes de liste) */
+  .card-hover {
+    transition:
+      transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.15);
+  }
+
+  /* Retour tactile au clic */
+  .btn-press {
+    transition: transform 0.1s ease;
+  }
+  .btn-press:active {
+    transform: scale(0.96);
+  }
+
+  /* Ondes concentriques du bouton flottant "+" */
+  .fab-pulse {
+    animation: ring-pulse 2s infinite;
+  }
+
+  /* --- Squelettes de chargement (streaming Suspense) --- */
+  .skeleton {
+    border-radius: 0.75rem;
+    background: linear-gradient(90deg, #eef2f4 0%, #e0e7ea 40%, #eef2f4 80%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /*
+   * Apparition en cascade pour les listes.
+   *
+   * Le delai arrive par la variable CSS `--stagger-delay` (helper
+   * `staggerStyle()` de lib/utils.ts) et l'animation est declaree EN ENTIER
+   * ici. Deux raisons :
+   *   - les classes `stagger-N` doivent etre ecrites en clair dans le source
+   *     pour que Tailwind les conserve, donc `stagger-${index}` n'est pas
+   *     fiable, et le plafond a 6 tronque les listes plus longues ;
+   *   - le raccourci `animation:` de Tailwind reinitialise
+   *     `animation-fill-mode`, donc poser `both` en declaration separee
+   *     dependrait de l'ordre des couches. Ici tout est dans une seule regle.
+   */
+  .stagger-item {
+    opacity: 0;
+    animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) var(--stagger-delay, 0ms) both;
+  }
+
+  /* --- Graphiques --- */
+  /* Barre qui pousse depuis la ligne de base du graphique. */
+  .bar-grow {
+    transform-origin: bottom;
+    animation: grow-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--bar-delay, 0ms) both;
+  }
+
+  /* Grille de repere discrete derriere les barres. */
+  .chart-grid {
+    background-image: linear-gradient(to top, rgb(226 232 240 / 0.9) 1px, transparent 1px);
+    background-size: 100% 25%;
+  }
+
+  /* Barre horizontale : ventilation par moyen de paiement. */
+  .bar-grow-x {
+    transform-origin: left;
+    animation: grow-right 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--bar-delay, 0ms) both;
+  }
+
+  /* Trait de sechement du check de confirmation. */
+  .check-path {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+  }
+
+  /*
+   * Accessibilite : si le systeme demande moins de mouvement, on coupe les
+   * animations et on remet tout visible — sinon les elements en cascade
+   * resteraient a opacity 0, donc invisibles.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .stagger-item,
+    .skeleton,
+    .fab-pulse,
+    .bar-grow,
+    .bar-grow-x,
+    .check-path,
+    .float-slow,
+    .float-slower,
+    .aurora,
+    .aurora-1,
+    .aurora-2,
+    .aurora-3,
+    .glass-sheen,
+    .float-3d,
+    [class*="animate-"] {
+      animation: none !important;
+    }
+    .stagger-item,
+    .check-path,
+    .stagger-1,
+    .stagger-2,
+    .stagger-3,
+    .stagger-4,
+    .stagger-5,
+    .stagger-6 {
+      opacity: 1 !important;
+      stroke-dashoffset: 0 !important;
+    }
+    .bar-grow,
+    .bar-grow-x {
+      transform: none !important;
+    }
+
+    /* Le reflet balaie en permanence : on le fige hors du balayage, sinon il
+       reste colle a un coin de la carte. */
+    .glass-sheen::after {
+      animation: none !important;
+      transform: translateX(0) !important;
+      opacity: 0 !important;
+    }
+
+    /* Sans animation, .float-3d garderait l'inclinaison de sa premiere image :
+       la carte resterait de travers. On la remet a plat. */
+    .float-3d,
+    .tilt-lift:hover {
+      transform: none !important;
+    }
+  }
+
+  /*
+   * Keyframes utilises par les classes sur mesure ci-dessus.
+   *
+   * ⚠ Ils sont aussi declares dans `tailwind.config.ts`, mais Tailwind ne
+   * conserve que les keyframes attacheses a un utilitaire `animate-*`
+   * EFFECTIVEMENT utilise dans le source. Or `.skeleton`, `.fab-pulse`,
+   * `.bar-grow` et `.bar-grow-x` sont ecrites a la main : leurs
+   * `animation: <nom>` ne sont jamais vus par le purgeur, qui ecarte alors
+   * `@keyframes grow-up`, `grow-right`, `ring-pulse` et `shimmer`. En
+   * developpement le JIT les laissait passer, en production les animations
+   * ne jouaient pas.
+   *
+   * Les redoubler ici garantit leur presence, ces regles n'etant pas
+   * concernees par le purge.
+   */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  @keyframes ring-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 15px rgba(249, 115, 22, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
+    }
+  }
+
+  /* Barres du graphique : elles poussent depuis leur ligne de base. */
+  @keyframes grow-up {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+
+  @keyframes grow-right {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /*
+   * Flottement du visuel du hero.
+   *
+   * Meme raison que ci-dessus : la classe `.float-slow` est ecrite a la main,
+   * donc le keyframe doit etre declare ici pour echapper au purge.
+   */
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-14px);
+    }
+  }
+
+  .float-slow {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .float-slower {
+    animation: float 9s ease-in-out infinite;
+  }
+
+  /*
+   * Effets verre / verre 3D (cf. SignUpIN.md § 11)
+   * ------------------------------------------------
+   * Meme raison que les keyframes plus haut : tout est declare ici, dans une
+   * feuille CSS, donc rien n'est purge a la compilation.
+   */
+
+  /* Perspective de la scene : sans elle, les transformations 3D des enfants
+     sont aplaties par le navigateur. */
+  .scene-3d {
+    perspective: 1400px;
+    perspective-origin: 50% 40%;
+  }
+
+  /* Verre depoli clair — la carte principale des ecrans d'authentification. */
+  .glass-panel {
+    background: linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.72) 0%,
+      rgb(255 255 255 / 0.55) 100%
+    );
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgb(255 255 255 / 0.6);
+    box-shadow:
+      /* ombre portee douce, la plus large */
+      0 30px 80px -20px rgb(15 23 42 / 0.35),
+      /* ombre de contact, plus dense */
+      0 8px 24px -8px rgb(15 23 42 / 0.2),
+      /* liseré supérieur : c'est lui qui donne la lecture " tranche de verre " */
+      inset 0 1px 0 0 rgb(255 255 255 / 0.9),
+      inset 0 -1px 0 0 rgb(255 255 255 / 0.35);
+  }
+
+  /* Verre sombre — le panneau de marque, pour qu'il reste dans la meme
+     profondeur que la carte claire qui l'accompagne. */
+  .glass-dark {
+    background: linear-gradient(
+      150deg,
+      rgb(15 118 110 / 0.55) 0%,
+      rgb(19 78 74 / 0.5) 100%
+    );
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgb(255 255 255 / 0.18);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.25),
+      0 20px 50px -20px rgb(0 0 0 / 0.5);
+  }
+
+  /* Petite pastille de verre (badges, indicateurs du panneau). */
+  .glass-chip {
+    background: rgb(255 255 255 / 0.14);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgb(255 255 255 / 0.25);
+    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.3);
+  }
+
+  /* Reflet qui balaie la surface — donne le cote " polissage " du verre. */
+  .glass-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+  .glass-sheen::after {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background: linear-gradient(
+      105deg,
+      transparent 42%,
+      rgb(255 255 255 / 0.3) 50%,
+      transparent 58%
+    );
+    transform: translateX(-100%);
+    animation: sheen-sweep 7s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes sheen-sweep {
+    0%,
+    62% {
+      transform: translateX(-100%);
+    }
+    86%,
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Taches d'aurore derriere la carte : c'est ce que le verre refracte. */
+  .aurora {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    will-change: transform;
+  }
+
+  .aurora-1 {
+    animation: aurora-drift 22s ease-in-out infinite;
+  }
+  .aurora-2 {
+    animation: aurora-drift 28s ease-in-out infinite reverse;
+  }
+  .aurora-3 {
+    animation: aurora-drift 34s ease-in-out infinite;
+  }
+
+  @keyframes aurora-drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    33% {
+      transform: translate3d(6%, -8%, 0) scale(1.14);
+    }
+    66% {
+      transform: translate3d(-7%, 5%, 0) scale(0.94);
+    }
+  }
+
+  /* Flottement 3D : inclinaison continue, sans suivre la souris. Un suivi
+     reel demanderait du JavaScript et un reflow a chaque mouvement — on
+     privilegie une animation CSS, gratuite pour le telephone. */
+  .float-3d {
+    transform-style: preserve-3d;
+    animation: float-3d 9s ease-in-out infinite;
+  }
+
+  @keyframes float-3d {
+    0%,
+    100% {
+      transform: rotateX(5deg) rotateY(-4deg) translate3d(0, 0, 0);
+    }
+    50% {
+      transform: rotateX(2deg) rotateY(4deg) translate3d(0, -12px, 30px);
+    }
+  }
+
+  /* Soulèvement au survol : se combine avec .float-3d sur un ENFANT, jamais
+     sur le meme element, sinon les deux animations se marchent dessus. */
+  .tilt-lift {
+    transition:
+      transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .tilt-lift:hover {
+    transform: translate3d(0, -4px, 40px) scale(1.02);
+  }
+}

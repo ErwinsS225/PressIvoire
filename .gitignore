@@ -1,0 +1,37 @@
+# Dependances
+/node_modules
+/.pnp
+.pnp.js
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+
+# Production
+/build
+
+# Var d'environnement (jamais committer !)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Supabase local
+supabase/.temp
+supabase/.branches
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Divers
+.DS_Store
+*.pem
+.vercel
+*.tsbuildinfo
+coverage/
+E
