@@ -225,12 +225,9 @@ export async function signUp(
   if (error) return { error: translateError(error.message) };
 
   // Confirmation d'email demandee : la session n'existe pas encore. Le compte
-  // est cree mais inactif — on ne redirige donc pas vers l'application.
+  // est cree mais inactif. On redirige vers une page intermediaire.
   if (data.user && !data.session) {
-    return {
-      success:
-        "Compte cree. Consultez votre boite mail pour confirmer votre adresse avant de vous connecter.",
-    };
+    redirect(`/auth/check-email?email=${encodeURIComponent(values.email)}`);
   }
 
   revalidatePath("/", "layout");
@@ -258,9 +255,9 @@ export async function requestPasswordReset(
   const { error } = await supabase.auth.resetPasswordForEmail(
     parsed.data.email,
     {
-      // Le lien ouvre `/reset-password`, qui exige le mot de passe actuel en plus
-      // du jeton : deux canaux independants pour un meme changement.
-      redirectTo: `${getAppUrl()}/reset-password`,
+      // Le lien ouvre `/auth/reset-password`, qui est une page dediee a la
+      // reinitialisation.
+      redirectTo: `${getAppUrl()}/auth/reset-password`,
     },
   );
 
@@ -283,7 +280,6 @@ export async function updatePassword(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = resetPasswordSchema.safeParse({
-    currentPassword: formData.get("currentPassword"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
   });
@@ -294,49 +290,25 @@ export async function updatePassword(
 
   const supabase = createClient();
 
-  /*
-   * Le lien de reinitialisation ouvre une session de type "recovery" : elle
-   * autorise a changer le mot de passe. On exige malgre tout le mot de passe
-   * actuel.
-   *
-   * Pourquoi : un lien de reinitialisation transite par la boite mail, qui
-   * n'est pas un canal sur. Sans cette verification, un lien intercepte — via
-   * un proxy, une boite compromise, un historique partage — suffit a prendre
-   * definitivement le compte. Le mot de passe, lui, ne transite ni dans une URL
-   * ni dans un historique de serveur.
-   */
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user?.email) {
-    return {
-      error:
-        "Lien de reinitialisation invalide ou expire. Demandez-en un nouveau.",
-    };
-  }
-
-  // Verification du mot de passe actuel par une connexion. On n'ecrit rien au
-  // navigateur a cette etape : la session de recovery reste en place, donc
-  // l'utilisateur peut reessayer sans repasser par sa boite mail.
-  const { error: checkError } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: parsed.data.currentPassword,
-  });
-
-  if (checkError) {
-    return {
-      fieldErrors: { currentPassword: "Mot de passe actuel incorrect." },
-    };
-  }
-
+  // La session de type "recovery" (issue du lien de l'email) autorise
+  // directement la mise a jour du mot de passe.
   const { error } = await supabase.auth.updateUser({
     password: parsed.data.password,
   });
-  if (error) return { error: translateError(error.message) };
+
+  if (error) {
+    // Si le lien a expire, on affiche un message clair.
+    if (error.message.includes("Token has expired or is invalid")) {
+      return {
+        error:
+          "Ce lien de réinitialisation a expiré. Veuillez en demander un nouveau.",
+      };
+    }
+    return { error: translateError(error.message) };
+  }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/dashboard?password_reset=true");
 }
 
 /* -------------------------------------------------------------------------- */

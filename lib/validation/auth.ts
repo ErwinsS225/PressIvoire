@@ -65,7 +65,8 @@ export const loginSchema = z.object({
     .refine(
       (value) => {
         const trimmed = value.trim();
-        if (trimmed.includes("@")) return z.string().email().safeParse(trimmed).success;
+        if (trimmed.includes("@"))
+          return z.string().email().safeParse(trimmed).success;
         // 8 a 10 chiffres une fois le prefixe 225 eventuellement retire.
         const digits = trimmed.replace(/\D/g, "").replace(/^225/, "");
         return digits.length >= 8 && digits.length <= 10;
@@ -80,10 +81,7 @@ export type LoginValues = z.output<typeof loginSchema>;
 export const registerSchema = z
   .object({
     role: z.enum(SIGNUP_ROLES),
-    fullName: z
-      .string()
-      .min(2, "Nom trop court")
-      .max(120, "Nom trop long"),
+    fullName: z.string().min(2, "Nom trop court").max(120, "Nom trop long"),
     phone,
     email,
     password,
@@ -105,13 +103,6 @@ export type ForgotPasswordValues = z.output<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z
   .object({
-    /*
-     * Mot de passe actuel : obligatoire meme dans un flux « mot de passe
-     * oublié ». Le lien de reinitialisation transite par la boite mail, canal
-     * sur ; exiger un second facteur jamais exposé dans une URL empêche qu'un
-     * lien intercepté suffise à prendre le compte. Voir `updatePassword()`.
-     */
-    currentPassword: z.string().min(1, "Saisissez votre mot de passe actuel"),
     password,
     confirmPassword: z.string(),
   })
