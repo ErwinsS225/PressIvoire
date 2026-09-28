@@ -809,6 +809,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_team_member: {
+        Args: {
+          p_full_name?: string
+          p_phone?: string
+          p_pressing_id: string
+          p_role: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       app_current_pressing_id: { Args: never; Returns: string }
       app_current_role: { Args: never; Returns: string }
       app_is_order_client: { Args: { p_order_id: string }; Returns: boolean }
@@ -837,6 +847,19 @@ export type Database = {
         Returns: Json
       }
       reference_pressing_id: { Args: never; Returns: string }
+      remove_team_member: {
+        Args: { p_pressing_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      update_team_member: {
+        Args: {
+          p_is_active: boolean
+          p_pressing_id: string
+          p_role: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

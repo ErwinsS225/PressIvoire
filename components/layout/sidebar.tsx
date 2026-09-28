@@ -51,6 +51,7 @@ const navLinks: {
         requires: "notifications",
     },
     { href: "/settings", label: "Paramètres", icon: Settings },
+    { href: "/equipe", label: "Équipe", icon: Users },
 ];
 
 export function Sidebar({
