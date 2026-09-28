@@ -623,17 +623,23 @@
  * `blur` + `saturate` : le second est ce qui fait "verre" plutôt que
  * "flou". Sans la saturation, un fond coloré vu à travers devient terne —
  * exactement l'inverse de l'effet recherché.
+ *
+ * ⚠ OPACITÉ : 0.92 → 0.78. Les valeurs précédentes laissaient passer trop de
+ * fond animé, et les chiffres devenaient difficiles à lire — un montant en
+ * gras sur un dégradé animé n'a plus de contraste stable. On garde assez de
+ * transparence pour voir l'aurora, assez d'opacité pour lire un chiffre du
+ * premier coup d'œil. C'est le compromis central de tout effet verre.
  */
 .glass-card {
   position: relative;
   background: linear-gradient(
     145deg,
-    rgb(255 255 255 / 0.72) 0%,
-    rgb(255 255 255 / 0.55) 100%
+    rgb(255 255 255 / 0.92) 0%,
+    rgb(255 255 255 / 0.78) 100%
   );
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgb(255 255 255 / 0.65);
+  border: 1px solid rgb(255 255 255 / 0.7);
   box-shadow:
     0 12px 32px -12px rgb(15 118 110 / 0.16),
     0 2px 8px -2px rgb(15 23 42 / 0.06),
@@ -641,7 +647,8 @@
     inset 0 1px 0 0 rgb(255 255 255 / 0.9);
   transition:
     transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Le survol n'existe pas sur tactile : la media query evite de laisser un
@@ -649,6 +656,13 @@
 @media (hover: hover) {
   .glass-card:hover {
     transform: translate3d(0, -3px, 0);
+    /* Le panneau s'éclaircit au survol : le contenu gagne encore en contraste,
+       et le geste reste perçu grâce à l'ombre et à l'élévation. */
+    background: linear-gradient(
+      145deg,
+      rgb(255 255 255 / 0.97) 0%,
+      rgb(255 255 255 / 0.88) 100%
+    );
     box-shadow:
       0 22px 46px -14px rgb(15 118 110 / 0.22),
       0 4px 12px -3px rgb(15 23 42 / 0.08),
@@ -664,6 +678,41 @@
   height: 3px;
   background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   opacity: 0.9;
+}
+
+/* --- Tableaux en verre ----------------------------------------------------- */
+
+/*
+ * Un tableau est le pire cas pour un fond trop transparent : des lignes
+ * alternées laiseraient passer les taches de l'aurora entre le texte, et la
+ * lecture d'une colonne de montants deviendrait pénible.
+ *
+ * On pose donc un VOILE blanc sous les lignes, et on garde le verre visible
+ * sur les bords de la carte. L'effet reste là, mais le contenu est garanti
+ * lisible.
+ *
+ * `-webkit-background-clip: text` n'est PAS utilisé ici : la couleur du texte
+ * doit rester celle du design system, pas dépendre du fond.
+ */
+.glass-table-wrap {
+  position: relative;
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 0.72);
+  overflow: hidden;
+}
+
+/* En-tête : un voile plus dense, pour que les libellés de colonnes
+   ressortent et que la hiérarchie visuelle reste nette. */
+.glass-table-wrap thead {
+  background: rgb(241 245 245 / 0.85);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* Lignes alternées : le contraste de fond reste perceptible pour suivre une
+   ligne de bout en bout, mais assez faible pour ne pas devenir un damier. */
+.glass-table-wrap tbody tr:nth-child(even) {
+  background: rgb(248 250 250 / 0.5);
 }
 
 /* --- Cascade d'entrée ----------------------------------------------------- */

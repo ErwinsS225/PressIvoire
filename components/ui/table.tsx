@@ -2,11 +2,24 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/*
+ * Conteneur de tableau.
+ *
+ * Le voile blanc (`glass-table-wrap`) est pose ICI, sur le `div` englobant,
+ * et non sur le `<table>` : une table occupe toute la largeur de son
+ * conteneur, donc le voile couvre la totalite de la zone — en-tete et pied
+ * compris. Le `overflow: hidden` de la classe rogne les coins arrondis et
+ * evite qu'une ligne deborde sous le verre.
+ *
+ * Sans ce voile, un tableau pose sur le fond anime laissait passer les
+ * taches entre les lignes : la lecture d'une colonne de montants devenait
+ * difficile, meme si chaque carte individuelle etait assez opaque.
+ */
 const Table = React.forwardRef<
     HTMLTableElement,
     React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+    <div className="glass-table-wrap relative w-full overflow-auto">
         <table
             ref={ref}
             className={cn("w-full caption-bottom text-sm", className)}
@@ -43,7 +56,7 @@ const TableFooter = React.forwardRef<
     <tfoot
         ref={ref}
         className={cn(
-            "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+            "border-t bg-muted/80 font-medium [&>tr]:last:border-b-0",
             className
         )}
         {...props}
@@ -58,7 +71,10 @@ const TableRow = React.forwardRef<
     <tr
         ref={ref}
         className={cn(
-            "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+            // `hover:bg-muted/70` et non `/50` : sur un fond de verre, 50 %
+            // d'opacite donnait un survol a peine perceptible — on ne savait
+            // plus sur quelle ligne se trouvait le curseur.
+            "border-b border-slate-100/80 transition-colors hover:bg-brand-700/[0.07] data-[state=selected]:bg-brand-700/10",
             className
         )}
         {...props}
