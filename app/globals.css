@@ -49,7 +49,8 @@
     --muted-foreground: 220 10% 44%;
 
     /* sarcelle — accent secondaire, réservé aux liens et statuts actifs */
-    --accent: 190 62% 34%;
+    /* Accent indigo #4f46e5 : couleur de reference de la charte. */
+    --accent: 243 75% 59%;
     --accent-foreground: 0 0% 100%;
 
     /* ambre — signal : compteurs, alertes, dégradés des barres */
@@ -85,7 +86,7 @@
 
     --border: 220 18% 88%;
     --input: 220 18% 88%;
-    --ring: 190 62% 34%;
+    --ring: 243 75% 59%;
 
     /*
      * Variables d'élévation (système 3D par ombre portée).
@@ -101,23 +102,44 @@
      * n'existe que par son ombre.
      */
     --surface: 0 0% 100%; /* fond des cartes et panneaux */
-    --surface-top: 220 30% 98%; /* haut du dégradé de fond d'application */
-    --surface-bottom: 220 22% 94%; /* bas du dégradé de fond d'application */
-    --surface-border: 220 20% 90%; /* bordures de cartes */
-    --table-head: 220 24% 95%; /* fond de l'en-tête des tableaux */
-    --table-stripe: 220 30% 98%; /* lignes alternées */
+    /* Le fond de l'application : #f8fafc, presque blanc et legerement
+       bleute. C'est ce qui fait DETACHER les cartes blanches, qui paraissent
+       alors flotter. Sur un blanc pur, une carte blanche n'existe que par
+       son ombre. */
+    --surface-top: 220 33% 98%;
+    --surface-bottom: 220 33% 98%;
+    --surface-border: 214 32% 91%; /* #e2e8f0 */
+    /* L'en-tete de tableau reprend le fond de l'application : il se continue
+       dans la page plutot que de flotter au-dessus d'un bloc. */
+    --table-head: 220 33% 98%;
+    --table-stripe: 220 33% 98%;
+    --divider: 214 32% 91%; /* #e2e8f0 */
+
+    /* Trois niveaux de texte, et pas plus : c'est toute la hierarchie. */
+    --foreground: 222 47% 11%; /* #0f172a — titres, chiffres */
+    --text-body: 215 19% 29%; /* #475569 — texte courant */
+    --text-muted: 215 16% 58%; /* #94a3b8 — libelles secondaires */
+
+    /* Navigation : un gris au repos, l'accent quand le lien est actif. */
+    --nav-idle: 215 13% 40%; /* #64748b */
+    --nav-hover: 210 40% 96%; /* #f1f5f9 */
+
+    --field-bg: 210 40% 96%; /* #f1f5f9 */
+    --scroll-thumb: 215 20% 82%; /* #cbd5e1 */
 
     /*
-     * Ombres : deux couches par surface (diffuse = air, serrée = contact).
+     * Ombres : deux etats, et c'est tout.
      *
-     * Volontairement TEINTÉES ARDOISE et non noires. Une ombre noire pure
-     * est un trou dans la page ; légèrement bleutée, elle se lit comme une
-     * ombre — c'est la même lumière qui éclaire l'objet et son ombre.
+     * Au REPOS, presque rien (4 %) : l'ombre ne sert qu'a décoller la carte
+     * du fond. Au SURVOL, 4 fois plus forte ET surtout plus etalee — c'est
+     * l'etendue qui donne la sensation que l'objet monte, pas l'intensite.
+     *
+     * Volontairement TEINTEES ARDOISE et non noires : une ombre noire pure
+     * est un trou dans la page ; legerement bleutee, elle se lit comme une
+     * ombre — c'est la meme lumiere qui eclaire l'objet et son ombre.
      */
-    --shadow-diffuse: 215 30% 25% / 0.05;
-    --shadow-contact: 215 32% 20% / 0.07;
-    /* Couche « marque » : très faible. Doit rester en retrait du gris. */
-    --shadow-brand: 215 28% 22% / 0.08;
+    --shadow-diffuse: 0 0% 0% / 0.04;
+    --shadow-hover: 0 0% 0% / 0.08;
 
     --radius: 0.5rem;
   }
@@ -144,7 +166,7 @@
     --muted-foreground: 215 14% 62%;
 
     /* sarcelle plus lumineux : l'accent doit ressortir sur fond sombre */
-    --accent: 187 70% 52%;
+    --accent: 234 89% 74%;
     --accent-foreground: 222 40% 10%;
 
     --flag-500: 32 90% 60%;
@@ -154,7 +176,7 @@
 
     --border: 220 16% 22%;
     --input: 220 16% 22%;
-    --ring: 187 70% 52%;
+    --ring: 234 89% 74%;
 
     /*
      * Variantes sombres des variables d'élévation.
@@ -175,17 +197,38 @@
      *    un gris et crée une auréole. Même famille de couleur = transition
      *    invisible.
      */
-    --surface: 220 20% 14%;
-    --surface-top: 222 26% 9%;
-    --surface-bottom: 222 30% 7%;
-    --surface-border: 220 16% 22%;
-    --table-head: 220 18% 18%;
-    --table-stripe: 220 20% 16%;
+    --surface: 220 22% 18%; /* #1e293b — la carte */
+    --surface-top: 222 45% 9%; /* #0b1120 — le fond de l'application */
+    --surface-bottom: 222 45% 9%;
+    --surface-border: 217 33% 27%; /* #334155 */
+    --table-head: 222 45% 12%; /* #0f172a */
+    --table-stripe: 222 45% 12%;
+    --divider: 217 33% 27%; /* #334155 */
 
-    /* Halo clair au lieu d'une ombre : c'est ce qui détache la carte. */
+    /* Les trois niveaux de texte s'inversent : le texte clair sur fond
+       sombre, le second plan un peu plus sourd. */
+    --foreground: 210 40% 96%; /* #f1f5f9 */
+    --text-body: 214 32% 83%; /* #cbd5e1 */
+    --text-muted: 215 20% 45%; /* #64748b */
+
+    --nav-idle: 215 20% 58%; /* #94a3b8 */
+    --nav-hover: 222 45% 12%; /* #0f172a */
+    --field-bg: 222 45% 12%; /* #0f172a */
+    --scroll-thumb: 215 19% 32%; /* #475569 */
+
+    /*
+     * Ombres en thème sombre : ce n'est plus une ombre, c'est une LUMIÈRE.
+     *
+     * Une ombre noire sur fond noir est INVISIBLE : la carte semblerait
+     * découpée au lieu d'être posée. On inverse donc le principe — l'ombre
+     * diffuse devient un halo clair qui détache la carte du fond.
+     *
+     * Teinté légèrement BLEUTÉ (et non blanc pur) : sur un fond gris-bleu,
+     * un halo blanc pur s'en détache comme un gris et crée une auréole
+     * disgracieuse. Même famille de couleur = transition invisible.
+     */
     --shadow-diffuse: 210 40% 88% / 0.04;
-    --shadow-contact: 0 0% 0% / 0.5;
-    --shadow-brand: 210 40% 85% / 0.03;
+    --shadow-hover: 0 0% 0% / 0.5;
   }
 }
 
@@ -629,50 +672,40 @@
 }
 
 /* ==========================================================================
-   ÉLÉVATION — Tableau de bord
+   CHARTE GRAPHIQUE — application de PressingPro
    --------------------------------------------------------------------------
-   Remplace l'effet verre (retiré : il rendait les chiffres difficiles à lire).
+   Reprise integrale d'un modele de dashboard Templates Monster, appliquee
+   a la main pour rester dans le systeme de variables de ce projet.
 
-   Le principe change complètement. Le verre jouait sur la TRANSPARENCE —
-   on laissait voir ce qui passait derrière. Ici on joue sur l'ÉLÉVATION :
-   les cartes sont pleines, et c'est leur OMBRE PORTÉE qui crée la
-   profondeur, comme un objet posé sur une table.
+   Ce qui caracterise cette charte, et pourquoi elle fonctionne :
 
-   Trois couches empilées :
+   1. UN SEUL NIVEAU DE GRIS. Fond #f8fafc, surfaces blanches, bordures
+      #e2e8f0, texte #0f172a / #475569 / #94a3b8. Aucune couleur decorative
+      ailleurs que les badges. Rien ne concurrence le contenu.
 
-     .elev-1  les cartes au repos        (ombres douces, à plat)
-     .elev-2  survol                     (elles montent, ombre qui s'étale)
-     .elev-3  panneaux structurels       (barre latérale, tableaux)
+   2. UN SEUL ACCENT. Indigo #4f46e5, reserve a deux endroits : l'etat actif
+      de la navigation, et les actions. Partout ailleurs, du gris.
 
-   Le secret d'une ombre qui « fait 3D » : SUPERPOSER deux ombres.
-     - une ombre DIFFUSE, très étalée et très douce  → l'ambiance, l'air
-     - une ombre SERRÉE, plus dense et plus proche   → le contact avec la
-                                                        surface, ce qui
-                                                        empêche l'objet de
-                                                        « flotter »
-   Une seule ombre ne donne jamais de profondeur : soit l'objet semble
-   plaqué, soit il semble suspendu.
+   3. DES OMBRES QUI DISPARAISSENT AU REPOS. 0 1px 3px / 4 % — presque rien.
+      Elles ne servent qu'au survol, ou elles montent a 4 fois plus forte.
+      Une carte posee en permanence parait collee a l'ecran ; une carte dont
+      l'ombre n'apparait qu'a l'approche parait reellement suspenue.
+
+   4. DES TRANSITIONS COURTES ET UNIFORMES (0.2 a 0.3 s). Au-dela, une
+      interface de gestion devient « ambree » : l'utilisateur attend.
+
+   Toutes les valeurs sont des VARIABLES, pour que le theme sombre les
+   reprenne sans reecrire la feuille de style.
    ========================================================================== */
 
 /* --- Fond de l'application ------------------------------------------------ */
 
-/*
- * Un dégradé TRÈS doux, presque blanc en thème clair, presque noir en thème
- * sombre. Il n'a pas besoin d'être animé : les cartes sont pleines et le
- * relief vient de leur ombre. Un fond animé derrière des cartes pleines
- * serait illisible ET coûteux — le GPU repeindrait en permanence pour un
- * résultat invisible.
- *
- * Les couleurs viennent des variables, jamais de littéraux : c'est ce qui
- * permet au thème sombre de basculer sans réécrire la feuille de style.
- */
 .app-surface {
   min-height: 100vh;
-  background: linear-gradient(
-    180deg,
-    hsl(var(--surface-top)) 0%,
-    hsl(var(--surface-bottom)) 100%
-  );
+  /* Presque blanc, legerement bleute : c'est ce qui fait DETACHER les
+     cartes blanches, qui paraissent alors flotter. Sur un fond blanc pur,
+     une carte blanche n'existe que par son ombre. */
+  background: hsl(var(--surface-bottom));
 }
 
 /* --- Niveau 1 : cartes au repos ------------------------------------------- */
@@ -681,102 +714,192 @@
   position: relative;
   background: hsl(var(--surface));
   border: 1px solid hsl(var(--surface-border));
-  box-shadow:
-    /* ombre diffuse : l'ambiance */
-    0 1px 2px rgb(var(--shadow-contact)),
-    0 4px 12px -4px rgb(var(--shadow-brand));
+  /* 1rem, et non 0.75rem : le rayon large est ce qui donne a la carte son
+     aspect « feuille posee » plutot qu'« carte posee ». */
+  border-radius: 1rem;
+  /* Volontairement NESSE. Une ombre permanente et marquee aplatit
+     l'interface ; celle-ci ne doit se voir qu'a l'approche. */
+  box-shadow: 0 1px 3px rgb(var(--shadow-diffuse));
   transition:
-    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform 0.3s,
+    box-shadow 0.3s;
 }
 
 /* --- Niveau 2 : survol ---------------------------------------------------- */
 
 /*
- * Le survol n'existe pas sur tactile : la media query évite qu'un tap
- * laisse l'état relevé collé après coup.
+ * Le survol n'existe pas sur tactile : la media query evite qu'un tap
+ * laisse l'etat releve colle apres coup.
  */
 @media (hover: hover) {
   .elev-1:hover {
-    /* translate3d et non translate : la transformation est composée par le
-       GPU, donc l'animation ne déclenche aucun recalcul de mise en page. */
-    transform: translate3d(0, -2px, 0);
-    box-shadow:
-      /* l'ombre de contact se resserre ET s'assombrit : c'est ce qui donne
-         la sensation que la carte se rapproche du regard */
-      0 2px 4px rgb(var(--shadow-contact)),
-      /* l'ombre diffuse s'étale : l'objet monte */
-      0 12px 28px -8px rgb(var(--shadow-brand));
+    /* translate3d et non translate : la transformation est composee par le
+       GPU, donc l'animation ne declenche aucun recalcul de mise en page. */
+    transform: translateY(-3px);
+    /* 4 fois plus forte qu'au repos, et surtout PLUS ETALEE (24 px au lieu
+       de 3 px) : c'est l'etendue qui donne la sensation que l'objet monte,
+       pas l'intensite. */
+    box-shadow: 0 12px 24px rgb(var(--shadow-hover));
   }
 }
 
 /* --- Niveau 3 : panneaux structurels -------------------------------------- */
 
-/* Barre latérale, en-têtes : plus haut qu'une carte, car c'est une structure
-   et non un contenu. */
 .elev-3 {
   background: hsl(var(--surface));
   border: 1px solid hsl(var(--surface-border));
-  box-shadow:
-    0 2px 4px rgb(var(--shadow-diffuse)),
-    0 12px 32px -12px rgb(var(--shadow-contact));
+  box-shadow: 0 1px 3px rgb(var(--shadow-diffuse));
 }
 
-/* --- Barres d'accent ----------------------------------------------------- */
+/* --- Navigation : l'etat actif ------------------------------------------- */
 
 /*
- * Remplace l'ancien `.glass-card--accent` (un liseré en dégradé posé par
- *-dessus). Conservé : c'est un repère visuel utile, et il fonctionne aussi
- * bien sur une carte pleine.
+ * Le lien actif ne se contente pas d'un aplat de couleur : un degrade
+ * horizontal qui s'estompe vers la droite, plus une barre de 3 px a droite.
+ *
+ * Le degrade indique « ici » (il part du bord) et la barre donne un repere
+ * physique qu'on retrouve du premier coup d'oeil apres un scroll. Un simple
+ * aplat, lui, ne dit pas QUOI est actif — on doit relire chaque libelle.
  */
-.elev-1--accent::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  border-radius: 0.75rem 0.75rem 0 0;
-  background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  border-right: 3px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--nav-idle));
+  transition: all 0.2s;
+}
+
+@media (hover: hover) {
+  .nav-link:hover {
+    background: hsl(var(--nav-hover));
+    color: hsl(var(--foreground));
+  }
+}
+
+.nav-link--active {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--accent) / 0.1) 0%,
+    transparent 100%
+  );
+  color: hsl(var(--accent));
+  border-right-color: hsl(var(--accent));
+  font-weight: 600;
+}
+
+/* --- Boutons d'icone et champs -------------------------------------------- */
+
+/* Carrés discrets : ni fond ni bordure au repos, un simple gris qui
+   s'illumine au survol. Le poids visuel est laisse aux actions. */
+.icon-btn {
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  color: hsl(var(--text-body));
+  transition: all 0.2s;
+}
+
+@media (hover: hover) {
+  .icon-btn:hover {
+    background: hsl(var(--nav-hover));
+    color: hsl(var(--foreground));
+  }
+}
+
+/*
+ * Le focus d'un champ est DOUBLE : bordure qui change de couleur ET anneau
+ * diffus. Un seul des deux ne suffit pas — la bordure seule est trop fine
+ * pour un utilisateur qui navigue au clavier, l'anneau seul passe inaperçu.
+ */
+.field {
+  background: hsl(var(--field-bg));
+  border: 1px solid hsl(var(--surface-border));
+  color: hsl(var(--foreground));
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.field:focus {
+  outline: none;
+  border-color: hsl(var(--accent));
+  box-shadow: 0 0 0 3px hsl(var(--accent) / 0.15);
+}
+
+/* Focus visible sur TOUT element focusable : on ne peut pas naviguer au
+   clavier sans voir ou l'on est. */
+*:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
+}
+
+/* --- Barres de defilement ------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--scroll-thumb));
+  border-radius: 100px;
+}
+
+/* Barre invisible (barre basse mobile, sidebar) : pas de defilement a la
+   souris, mais le contenu reste defilable au tactile et au clavier. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 1.2 s : assez lent pour que la progression se LISE, pas juste s'affiche.
+   En dessous de 500 ms, une jauge n'a plus d'information a donner. */
+.progress-fill {
+  transition: width 1.2s ease;
 }
 
 /* --- Tableaux ------------------------------------------------------------- */
 
 /*
- * Un tableau est un volume, pas une liste : il reçoit un niveau d'élévation
- * propre et son EN-TÊTE un niveau de plus.
- *
- * L'idée est qu'on puisse suivre une ligne à l'œil du haut en bas du
- * tableau. Pour ça, l'en-tête doit « flotter » au-dessus des lignes —
- * d'où son ombre portée vers le bas, qui simule un panneau suspendu.
+ * Fond d'en-tete identique a celui de l'application (#f8fafc) et non a celui
+ * d'une carte : l'en-tete se continue dans la page plutot que de flotter
+ * au-dessus d'un bloc. Ici le volume de donnees prime — c'est un tableau de
+ * travail, pas une carte de presentation.
  */
 .elev-table {
   position: relative;
   background: hsl(var(--surface));
   border: 1px solid hsl(var(--surface-border));
   border-radius: 0.75rem;
-  box-shadow:
-    0 1px 2px rgb(var(--shadow-diffuse)),
-    0 6px 18px -8px rgb(var(--shadow-contact));
+  box-shadow: 0 1px 3px rgb(var(--shadow-diffuse));
   overflow: hidden;
 }
 
-/* En-tête : posé plus haut que le corps, avec une ombre qui tombe sur lui.
-   C'est ce qui donne au tableau sa lecture de "calques". */
 .elev-table thead {
-  position: relative;
-  z-index: 1;
   background: hsl(var(--table-head));
-  box-shadow: 0 2px 4px -1px rgb(var(--shadow-contact));
+  font-weight: 500;
 }
 
-/* Lignes alternées : très faible contraste, juste assez pour suivre une
-   ligne de bout en bout. Trop marqué, on obtient un damier. */
-.elev-table tbody tr:nth-child(even) {
-  background: hsl(var(--table-stripe));
+.elev-table tbody tr {
+  border-bottom: 1px solid hsl(var(--divider));
+  transition: background 0.2s;
+}
+
+.elev-table tbody tr:last-child {
+  border-bottom: 0;
 }
 
 @media (hover: hover) {
   .elev-table tbody tr:hover {
-    background: hsl(var(--secondary) / 0.7);
+    background: hsl(var(--table-head));
   }
 }
 

@@ -97,11 +97,9 @@ export function Sidebar({
                                 if (locked) event.preventDefault();
                             }}
                             className={cn(
-                                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                                "nav-link",
                                 locked && "opacity-50",
-                                isActive && !locked
-                                    ? "bg-brand-700/10 font-semibold text-brand-700"
-                                    : "text-muted-foreground hover:bg-white/60 hover:text-foreground",
+                                isActive && !locked && "nav-link--active",
                             )}
                             title={locked ? "Réservé au plan Pro" : undefined}
                         >
