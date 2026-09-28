@@ -15,6 +15,7 @@ import {
     Bell,
     Lock,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
 /**
@@ -114,6 +115,11 @@ export function Sidebar({
                 })}
             </nav>
             <div className="border-t border-slate-200/70 p-3">
+                {/* Le sélecteur de thème est ici plutôt que dans l'en-tête de
+                    chaque page : c'est un réglage global, pas propre à un
+                    écran, et la barre latérale est le seul chrome présent
+                    partout. */}
+                <ThemeToggle className="mb-3 w-full" />
                 <form action="/api/signout" method="post">
                     <button
                         type="submit"

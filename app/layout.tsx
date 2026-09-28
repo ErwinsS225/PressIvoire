@@ -3,6 +3,11 @@ import { Inter, Poppins } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
+import {
+  ThemeProvider,
+  themeInitScript,
+} from "@/components/theme/theme-provider";
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -69,11 +74,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    /*
+     * `suppressHydrationWarning` : le script ci-dessous ajoute la classe
+     * `dark` sur <html> AVANT l'hydratation de React. Sans cet attribut,
+     * React signalerait un écart entre le HTML servi et son DOM attendu.
+     */
     <html lang="fr" suppressHydrationWarning>
+      <head>
+        {/*
+          Thème appliqué AVANT le premier rendu, et volontairement SANS
+          `next/script` : un script injecté par Next peut s'exécuter après
+          le premier rendu selon la stratégie de chargement. Or un thème posé
+          tardivement produit un éclair blanc sur fond noir — exactement ce que
+          ce script existe pour éviter.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body
         className={`${inter.variable} ${poppins.variable} font-sans min-h-dvh bg-background text-foreground`}
       >
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
         <Toaster
           position="top-center"
           richColors

@@ -34,6 +34,26 @@
     --input: 175 25% 88%;
     --ring: 175 77% 26%;
 
+    /*
+     * Variables d'élévation (système 3D par ombre portée).
+     *
+     * Déclarées ici, et non en dur dans `.elev-1`, pour une raison simple :
+     * une couleur écrite en littéral ne change pas quand on bascule en thème
+     * sombre — la carte resterait blanche sur fond noir. Ces variables sont
+     * réécrites dans le bloc `.dark` plus bas.
+     */
+    --surface: 0 0% 100%; /* fond des cartes et panneaux */
+    --surface-top: 0 0% 100%; /* haut du dégradé de fond d'application */
+    --surface-bottom: 160 20% 95%; /* bas du dégradé de fond d'application */
+    --surface-border: 220 20% 90%; /* bordures de cartes */
+    --table-head: 165 20% 95%; /* fond de l'en-tête des tableaux */
+    --table-stripe: 160 20% 98%; /* lignes alternées */
+
+    /* Ombres : deux couches par surface (diffuse = air, serrée = contact). */
+    --shadow-diffuse: 15 23 42 / 0.05;
+    --shadow-contact: 15 23 42 / 0.06;
+    --shadow-brand: 15 118 110 / 0.1;
+
     --radius: 0.5rem;
   }
 
@@ -65,6 +85,34 @@
     --border: 175 25% 20%;
     --input: 175 25% 20%;
     --ring: 175 77% 45%;
+
+    /*
+     * Variantes sombres des variables d'élévation.
+     *
+     * Deux différences avec le thème clair, et elles sont importantes :
+     *
+     * 1. Les SURFACES s'éclaircissent au lieu de s'assombrir (`--surface` passe
+     *    de blanc à un gris-bleu très foncé). Sur fond noir, une carte plus
+     *    SOMBRE que le fond disparaîtrait : on ne distingue plus son contour,
+     *    et la profondeur disparaît avec. Le relief se lit alors à l'inverse
+     *    — c'est le fond qui doit être le plus sombre, la carte au-dessus.
+     *
+     * 2. Les OMBRES s'éclaircissent fortement. Une ombre noire sur fond noir
+     *    est invisible : la carte semblerait découpée, pas posée. On remplace
+     *    donc l'ombre d'ombre par une LUMIÈRE — l'ombre diffuse devient un halo
+     *    clair (blanc à 3 %), qui détache la carte du fond.
+     */
+    --surface: 175 30% 12%;
+    --surface-top: 175 35% 8%;
+    --surface-bottom: 175 40% 6%;
+    --surface-border: 175 25% 20%;
+    --table-head: 175 28% 16%;
+    --table-stripe: 175 30% 14%;
+
+    /* Halo clair au lieu d'une ombre : c'est ce qui détache la carte. */
+    --shadow-diffuse: 0 0% 100% / 0.03;
+    --shadow-contact: 0 0% 0% / 0.5;
+    --shadow-brand: 45 212 191 / 0.08;
   }
 }
 
@@ -536,26 +584,34 @@
 /* --- Fond de l'application ------------------------------------------------ */
 
 /*
- * Un dégradé TRÈS doux, presque blanc. Il n'a plus besoin d'être animé :
- * les cartes sont pleines et le relief vient de leur ombre. Un fond animé
- * derrière des cartes pleines serait illisible ET coûteux — le GPU
- * repeindrait en permanence pour un résultat invisible.
+ * Un dégradé TRÈS doux, presque blanc en thème clair, presque noir en thème
+ * sombre. Il n'a pas besoin d'être animé : les cartes sont pleines et le
+ * relief vient de leur ombre. Un fond animé derrière des cartes pleines
+ * serait illisible ET coûteux — le GPU repeindrait en permanence pour un
+ * résultat invisible.
+ *
+ * Les couleurs viennent des variables, jamais de littéraux : c'est ce qui
+ * permet au thème sombre de basculer sans réécrire la feuille de style.
  */
 .app-surface {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f7faf9 0%, #eef3f2 100%);
+  background: linear-gradient(
+    180deg,
+    hsl(var(--surface-top)) 0%,
+    hsl(var(--surface-bottom)) 100%
+  );
 }
 
 /* --- Niveau 1 : cartes au repos ------------------------------------------- */
 
 .elev-1 {
   position: relative;
-  background: rgb(255 255 255);
-  border: 1px solid rgb(226 232 240);
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--surface-border));
   box-shadow:
     /* ombre diffuse : l'ambiance */
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 4px 12px -4px rgb(15 118 110 / 0.08);
+    0 1px 2px rgb(var(--shadow-contact)),
+    0 4px 12px -4px rgb(var(--shadow-brand));
   transition:
     transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -569,15 +625,15 @@
  */
 @media (hover: hover) {
   .elev-1:hover {
-    /*translate3d et non translate : la transformation est composée par le
+    /* translate3d et non translate : la transformation est composée par le
        GPU, donc l'animation ne déclenche aucun recalcul de mise en page. */
     transform: translate3d(0, -2px, 0);
     box-shadow:
       /* l'ombre de contact se resserre ET s'assombrit : c'est ce qui donne
          la sensation que la carte se rapproche du regard */
-      0 2px 4px rgb(15 23 42 / 0.06),
+      0 2px 4px rgb(var(--shadow-contact)),
       /* l'ombre diffuse s'étale : l'objet monte */
-      0 12px 28px -8px rgb(15 118 110 / 0.18);
+      0 12px 28px -8px rgb(var(--shadow-brand));
   }
 }
 
@@ -586,11 +642,11 @@
 /* Barre latérale, en-têtes : plus haut qu'une carte, car c'est une structure
    et non un contenu. */
 .elev-3 {
-  background: rgb(255 255 255);
-  border: 1px solid rgb(226 232 240);
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--surface-border));
   box-shadow:
-    0 2px 4px rgb(15 23 42 / 0.04),
-    0 12px 32px -12px rgb(15 23 42 / 0.12);
+    0 2px 4px rgb(var(--shadow-diffuse)),
+    0 12px 32px -12px rgb(var(--shadow-contact));
 }
 
 /* --- Barres d'accent ----------------------------------------------------- */
@@ -621,12 +677,12 @@
  */
 .elev-table {
   position: relative;
-  background: rgb(255 255 255);
-  border: 1px solid rgb(226 232 240);
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--surface-border));
   border-radius: 0.75rem;
   box-shadow:
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 6px 18px -8px rgb(15 23 42 / 0.1);
+    0 1px 2px rgb(var(--shadow-diffuse)),
+    0 6px 18px -8px rgb(var(--shadow-contact));
   overflow: hidden;
 }
 
@@ -635,14 +691,14 @@
 .elev-table thead {
   position: relative;
   z-index: 1;
-  background: #f1f5f4;
-  box-shadow: 0 2px 4px -1px rgb(15 23 42 / 0.06);
+  background: hsl(var(--table-head));
+  box-shadow: 0 2px 4px -1px rgb(var(--shadow-contact));
 }
 
 /* Lignes alternées : très faible contraste, juste assez pour suivre une
    ligne de bout en bout. Trop marqué, on obtient un damier. */
 .elev-table tbody tr:nth-child(even) {
-  background: rgb(248 250 250);
+  background: hsl(var(--table-stripe));
 }
 
 @media (hover: hover) {
