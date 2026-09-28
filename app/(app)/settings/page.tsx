@@ -97,7 +97,15 @@ export default async function SettingsPage() {
 
         {/* Abonnement + session */}
         <div className="grid gap-6">
-          <Card>
+          {/*
+            `id="abonnement"` : ancre visée par le bouton « Upgrade Now » de
+            la barre latérale. Sans elle, le lien arrive en haut de page et
+            l'utilisateur ne voit pas la section qu'on lui promet.
+
+            `scroll-mt-6` évite que le titre ne passe sous un éventuel
+            en-tête collé.
+          */}
+          <Card id="abonnement" className="scroll-mt-6">
             <CardHeader>
               <CardTitle>Abonnement</CardTitle>
               <CardDescription>

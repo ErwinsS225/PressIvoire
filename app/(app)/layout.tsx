@@ -1,6 +1,10 @@
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Sidebar, type Capability } from "@/components/layout/sidebar";
-import { getEffectivePlan } from "@/lib/subscriptions";
+import {
+    getEffectivePlan,
+    getMonthlyOrderCountForPlan,
+} from "@/lib/subscriptions";
+import { getContext } from "@/lib/supabase/queries";
 
 /**
  * Layout principal de l'application.
@@ -28,6 +32,26 @@ export default async function AppLayout({
     if (context?.limits.reports) capabilities.push("reports");
     if (context?.limits.notifications) capabilities.push("notifications");
 
+    /*
+     * Quota d'appel à l'upgrade, affiché dans la barre latérale.
+     *
+     * On ne le compte que si le plan est gratuit ET qu'un quota existe :
+     * sans cela, chaque navigation exécuterait une requête `count` inutile
+     * pour les clients payants, qui n'ont ni compteur ni jauge.
+     *
+     * Le nombre affiché est celui RÉELLEMENT appliqué par `createOrder()`,
+     * pas une estimation : afficher « 50/50 » alors qu'une commande passe
+     * encore ferait perdre confiance au premier refus.
+     */
+    const isFree = context?.plan.id === "free";
+    let usedOrders = 0;
+    if (isFree) {
+        const { pressing } = await getContext();
+        if (pressing) {
+            usedOrders = await getMonthlyOrderCountForPlan(pressing.id);
+        }
+    }
+
     return (
         // `app-surface` : un dégradé très doux, presque blanc. Il donne le
         // plan de travail sur lequel les cartes viennent se poser — c'est lui
@@ -35,7 +59,14 @@ export default async function AppLayout({
         <div className="app-surface flex min-h-dvh">
             {/* Barre laterale : desktop uniquement */}
             <div className="hidden md:flex">
-                <Sidebar capabilities={capabilities} />
+                <Sidebar
+                    capabilities={capabilities}
+                    isFree={isFree}
+                    usage={{
+                        usedOrders,
+                        limitOrders: context?.limits.ordersPerMonth ?? null,
+                    }}
+                />
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">

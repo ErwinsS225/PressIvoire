@@ -15,6 +15,7 @@ import {
     Bell,
     Lock,
 } from "lucide-react";
+import { UpgradeCard } from "@/components/subscription/upgrade-card";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -57,9 +58,22 @@ const navLinks: {
 
 export function Sidebar({
     capabilities = [],
+    isFree = false,
+    usage = { usedOrders: 0, limitOrders: null },
 }: {
     /** Capacités accordées par le plan courant. Vide = plan gratuit. */
     capabilities?: Capability[];
+    /**
+     * Le pressing est-il en plan gratuit ?
+     *
+     * Un simple booléen, pas l'objet Plan entier : la barre n'a qu'une
+     * question à poser (« faut-il inciter à upgrader ? »). Lui passer la
+     * palette complète l'exposerait à des couleurs en dur ici, et donc à une
+     * divergence avec `lib/plans.ts`.
+     */
+    isFree?: boolean;
+    /** Consommation du quota, pour la barre de progression de la carte. */
+    usage?: { usedOrders: number; limitOrders: number | null };
 }) {
     const pathname = usePathname();
 
@@ -118,6 +132,14 @@ export function Sidebar({
                     écran, et la barre latérale est le seul chrome présent
                     partout. */}
                 <ThemeToggle className="mb-3 w-full" />
+
+                {/*
+                  Carte d'upgrade, SOUS le sélecteur de thème.
+                  Affichée seulement en plan gratuit : rappeler « passez au
+                  Pro » à quelqu'un qui y est déjà serait absurde, et ferait
+                  perdre tout son sens à l'argumentaire.
+                */}
+                {isFree ? <UpgradeCard {...usage} /> : null}
                 <form action="/api/signout" method="post">
                     <button
                         type="submit"
