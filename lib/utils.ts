@@ -68,7 +68,6 @@ export function normalizeIvorianPhone(input: string): string {
   if (digits.length === 0) return "";
   return `+225${digits}`;
 }
-
 /**
  * Valide un chemin de redirection interne.
  *

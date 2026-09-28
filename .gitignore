@@ -11,12 +11,18 @@ next-env.d.ts
 # Production
 /build
 
+# Journal de tests et artefacts de build
+coverage/
+
 # Var d'environnement (jamais committer !)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Fichiers parasites
+/E
 
 # Supabase local
 supabase/.temp

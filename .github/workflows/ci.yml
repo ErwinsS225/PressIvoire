@@ -25,14 +25,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Avant le lint : un test casse plus tot et avec un message plus clair
+      # qu'une erreur de compilation 40 lignes plus loin.
+      - name: Run unit tests
+        run: npm run test
+
       - name: Run linter
         run: npm run lint
 
       - name: Type check
         run: npm run type-check
-
-      - name: Run tests
-        run: npm run test
 
       - name: Build project
         run: npm run build

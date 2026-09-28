@@ -168,8 +168,14 @@ export const PAYMENT_METHOD_LABELS_EXTENDED: Record<string, string> = {
   transfer: "Virement",
 };
 
-/** Libelle affichable d'un moyen de paiement, quelle que soit sa provenance. */
-export function paymentMethodLabel(method: string | null): string {
+/**
+ * Libelle affichable d'un moyen de paiement, quelle que soit sa provenance.
+ *
+ * Accepte `undefined` comme `null` : les colonnes de la base sont soit NULL,
+ * soit absentes du resultat de la requete. Les deux cas doivent aboutir au
+ * meme repli, sans obliger l'appelant a coalescer.
+ */
+export function paymentMethodLabel(method: string | null | undefined): string {
   if (!method) return "Non renseigné";
   return PAYMENT_METHOD_LABELS_EXTENDED[method] ?? method;
 }
@@ -184,7 +190,9 @@ export const CASHIER_METHODS = [
 ] as const;
 
 /** Couleur et icone d'un moyen de paiement, pour la caisse et les rapports. */
-export function paymentMethodStyle(method: string | null): { icon: string; color: string } {
+export function paymentMethodStyle(
+  method: string | null | undefined,
+): { icon: string; color: string } {
   const found = CASHIER_METHODS.find((m) => m.value === method);
   if (found) return { icon: found.icon, color: found.color };
   if (method === "card") return { icon: "💳", color: "bg-slate-100 text-slate-700" };
