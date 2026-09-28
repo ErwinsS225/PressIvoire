@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/supabase/queries";
 import { onboardingPayloadSchema } from "@/lib/validation/onboarding";
 import type { CatalogArticle } from "@/lib/validation/onboarding";
-import type { ActionState } from "@/app/actions/onboarding-state";
 import { z } from "zod";
 
 /**
@@ -171,105 +170,4 @@ export async function uploadLogo(
     url: supabase.storage.from("pressing-assets").getPublicUrl(path).data
       .publicUrl,
   };
-}
-
-const servicesSchema = z.array(
-  z.object({
-    name: z.string().min(1, "Le nom du service est requis."),
-    price: z.coerce
-      .number()
-      .int()
-      .positive("Le prix doit être un nombre positif."),
-  }),
-);
-
-export async function updatePressingServices(
-  _previous: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const { pressing, userId } = await getContext();
-  if (!pressing || !userId) return { error: "Session invalide." };
-
-  const rawServices: any[] = [];
-  formData.forEach((value, key) => {
-    const match = key.match(/services\[(\d+)\]\[(name|price)\]/);
-    if (match) {
-      const index = parseInt(match[1], 10);
-      const field = match[2];
-      if (!rawServices[index]) rawServices[index] = {};
-      rawServices[index][field] = value;
-    }
-  });
-
-  const parsed = servicesSchema.safeParse(rawServices);
-  if (!parsed.success) {
-    return {
-      error: "Données des services invalides. Vérifiez les noms et les prix.",
-    };
-  }
-
-  const supabase = createClient();
-  /*
-   * Colonnes reelles de la table `articles` (migration 001) : le refactor
-   * ecrivait `delay_hours` / `price_wash` et `category: "clothing"`, qui
-   * n'existent pas — l'insert echouait donc sur une colonne inexistante.
-   * `category` et `wash_type` sont des enumerations controlees par CHECK en
-   * base, pas des textes libres : "clothing" / "dry_cleaning" y sont
-   * rejetés aussi. Valeurs prises dans lib/constants.ts.
-   */
-  const articles = parsed.data.map((service) => ({
-    pressing_id: pressing.id,
-    name: service.name,
-    category: "habit" as const,
-    wash_type: "eau" as const,
-    estimated_hours: 48,
-    price: service.price,
-    is_active: true,
-  }));
-
-  const { error } = await supabase.from("articles").insert(articles);
-
-  if (error) {
-    return { error: "Impossible d'enregistrer les services. " + error.message };
-  }
-
-  redirect("/onboarding/step-3");
-}
-
-const planSchema = z.enum(["essential", "premium"]);
-
-export async function updatePressingPlan(
-  _previous: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const { pressing, userId } = await getContext();
-  if (!pressing || !userId) return { error: "Session invalide." };
-
-  const plan = formData.get("plan");
-  const parsed = planSchema.safeParse(plan);
-
-  if (!parsed.success) {
-    return { error: "Plan d'abonnement invalide." };
-  }
-
-  const supabase = createClient();
-  const { error } = await supabase
-    .from("pressings")
-    .update({
-      subscription_plan: parsed.data,
-      // On simule une date d'expiration dans un mois
-      subscription_expires_at: new Date(
-        Date.now() + 30 * 24 * 60 * 60 * 1000,
-      ).toISOString(),
-    })
-    .eq("id", pressing.id);
-
-  if (error) {
-    return {
-      error: "Impossible de mettre à jour l'abonnement. " + error.message,
-    };
-  }
-
-  // Onboarding terminé ! On redirige vers le tableau de bord.
-  redirect("/dashboard");
 }

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
+import { AlertTriangle } from "lucide-react";
 
 export default function ResetPasswordPage() {
     // Etat initial explicite : `useFormState` n'accepte pas `undefined`, et
@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
 
                     {state?.error && (
                         <Alert variant="destructive">
-                            <ExclamationTriangleIcon className="h-4 w-4" />
+                            <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Erreur</AlertTitle>
                             <AlertDescription>{state.error}</AlertDescription>
                         </Alert>
