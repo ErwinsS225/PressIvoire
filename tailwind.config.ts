@@ -20,26 +20,51 @@ const config: Config = {
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       colors: {
-        /* Brand PressingPro */
+        /*
+         * Brand PressingPro — ARDOISE BLEUTÉE.
+         *
+         * Ces valeurs pointent sur les variables CSS, pas sur des hex : c'est
+         * ce qui fait que `bg-brand-700` suit automatiquement le thème. Avec
+         * des hex en dur, le bouton principal resterait vert sur fond sombre.
+         *
+         * Pourquoi l'ardoise et non le vert d'origine : une couleur très
+         * saturée sur de grandes surfaces capte l'œil plus fort que l'ombre
+         * qui porte le relief. On regarde alors l'objet au lieu de regarder sa
+         * profondeur — alors que la profondeur est justement l'effet visé.
+         */
         brand: {
-          DEFAULT: "#0F766E",
-          50: "#ECFDF7",
-          100: "#D1FAE5",
-          200: "#A7F3D0",
-          500: "#14B8A6",
-          600: "#0D9488",
-          700: "#0F766E",
-          800: "#115E59",
-          900: "#134E4A",
+          DEFAULT: "hsl(var(--primary))",
+          50: "hsl(var(--primary) / 0.04)",
+          100: "hsl(var(--primary) / 0.08)",
+          200: "hsl(var(--primary) / 0.16)",
+          500: "hsl(var(--primary) / 0.7)",
+          600: "hsl(var(--primary) / 0.85)",
+          700: "hsl(var(--primary))",
+          800: "hsl(var(--primary) / 0.92)",
+          900: "hsl(var(--primary-foreground))",
         },
+        /*
+         * Accent sarcelle : liens, statuts actifs, éléments « en cours ».
+         * L'ambre (`flag`) est réservé aux alertes et aux compteurs.
+         */
+        teal: {
+          DEFAULT: "hsl(var(--accent))",
+          50: "hsl(var(--accent) / 0.06)",
+          100: "hsl(var(--accent) / 0.12)",
+          200: "hsl(var(--accent) / 0.24)",
+          500: "hsl(var(--accent) / 0.7)",
+          600: "hsl(var(--accent) / 0.88)",
+          700: "hsl(var(--accent))",
+        },
+        /* Ambre — signal : ce qui doit accrocher l'œil. */
         flag: {
-          DEFAULT: "#F97316",
-          50: "#FFF7ED",
-          100: "#FFEDD5",
-          200: "#FED7AA",
-          400: "#FB923C",
-          500: "#F97316",
-          600: "#EA580C",
+          DEFAULT: "hsl(var(--flag-500))",
+          50: "hsl(var(--flag-500) / 0.06)",
+          100: "hsl(var(--flag-500) / 0.12)",
+          200: "hsl(var(--flag-500) / 0.24)",
+          400: "hsl(var(--flag-500) / 0.7)",
+          500: "hsl(var(--flag-500))",
+          600: "hsl(var(--flag-500) / 0.88)",
         },
         /* vert WhatsApp — statuts "pret", confirmations, succes */
         whatsapp: {

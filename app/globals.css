@@ -2,37 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
-/* PressingPro — palette : vert profond #0F766E + orange #F97316 */
+/* =============================================================================
+   PressingPro — palette
+   -----------------------------------------------------------------------------
+   Base ARDOISE BLEUTÉE (slate), accent SARCELLE (teal) + AMBRE en appui.
+
+   Pourquoi abandonner le vert profond en couleur principale :
+
+   1. SATURATION. `#0F766E` est très saturé. Posé sur de grandes surfaces —
+      en-têtes de tableaux, badges, boutons — il capte l'œil plus fort que
+      l'ombre qui porte le relief. On regarde alors l'objet, et plus sa
+      profondeur. Or c'est justement la profondeur qu'on veut voir.
+
+   2. OMBRES. Une ombre teintée de la couleur de marque (ce que faisait
+      `--shadow-brand`) se confond avec la teinte des surfaces voisines et
+      « salit » le gris. Le 3D se lit quand l'ombre est d'une AUTRE famille
+      que l'objet : ardoise pour la couleur, ardoise très désaturée pour
+      l'ombre, sarcelle en accent ponctuel.
+
+   3. SERVEUR, PAS MARKETING. Un pressing vend du service et de la
+   propreté. L'ardoise communique la rigueur ; le sarcelle reste présent
+   sans crier. L'ambre ne sert que pour les alertes et les compteurs —
+   les points où l'œil doit s'accrocher.
+
+   Concrètement : la couleur est rare, la profondeur est constante.
+   ============================================================================= */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 175 40% 8%;
+    --background: 220 25% 97%;
+    --foreground: 222 30% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 175 40% 8%;
+    --card-foreground: 222 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 175 40% 8%;
+    --popover-foreground: 222 30% 12%;
 
-    /* vert profond */
-    --primary: 175 77% 26%;
+    /* ardoise — couleur principale, volontairement peu saturée */
+    --primary: 222 28% 24%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 175 40% 95%;
-    --secondary-foreground: 175 60% 18%;
+    --secondary: 220 20% 94%;
+    --secondary-foreground: 222 28% 22%;
 
-    --muted: 160 20% 95%;
-    --muted-foreground: 175 10% 42%;
+    --muted: 220 18% 95%;
+    --muted-foreground: 220 10% 44%;
 
-    --accent: 25 95% 53%; /* orange */
+    /* sarcelle — accent secondaire, réservé aux liens et statuts actifs */
+    --accent: 190 62% 34%;
     --accent-foreground: 0 0% 100%;
+
+    /* ambre — signal : compteurs, alertes, dégradés des barres */
+    --flag-500: 28 88% 52%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 175 25% 88%;
-    --input: 175 25% 88%;
-    --ring: 175 77% 26%;
+    --border: 220 18% 88%;
+    --input: 220 18% 88%;
+    --ring: 190 62% 34%;
 
     /*
      * Variables d'élévation (système 3D par ombre portée).
@@ -41,50 +69,67 @@
      * une couleur écrite en littéral ne change pas quand on bascule en thème
      * sombre — la carte resterait blanche sur fond noir. Ces variables sont
      * réécrites dans le bloc `.dark` plus bas.
+     *
+     * Le fond de l'application est LÉGÈREMENT bleuté (et non blanc pur) :
+     * c'est ce qui détache les cartes blanches, qui « flottent » alors
+     * réellement au-dessus de la page. Sur un fond blanc, une carte blanche
+     * n'existe que par son ombre.
      */
     --surface: 0 0% 100%; /* fond des cartes et panneaux */
-    --surface-top: 0 0% 100%; /* haut du dégradé de fond d'application */
-    --surface-bottom: 160 20% 95%; /* bas du dégradé de fond d'application */
+    --surface-top: 220 30% 98%; /* haut du dégradé de fond d'application */
+    --surface-bottom: 220 22% 94%; /* bas du dégradé de fond d'application */
     --surface-border: 220 20% 90%; /* bordures de cartes */
-    --table-head: 165 20% 95%; /* fond de l'en-tête des tableaux */
-    --table-stripe: 160 20% 98%; /* lignes alternées */
+    --table-head: 220 24% 95%; /* fond de l'en-tête des tableaux */
+    --table-stripe: 220 30% 98%; /* lignes alternées */
 
-    /* Ombres : deux couches par surface (diffuse = air, serrée = contact). */
-    --shadow-diffuse: 15 23 42 / 0.05;
-    --shadow-contact: 15 23 42 / 0.06;
-    --shadow-brand: 15 118 110 / 0.1;
+    /*
+     * Ombres : deux couches par surface (diffuse = air, serrée = contact).
+     *
+     * Volontairement TEINTÉES ARDOISE et non noires. Une ombre noire pure
+     * est un trou dans la page ; légèrement bleutée, elle se lit comme une
+     * ombre — c'est la même lumière qui éclaire l'objet et son ombre.
+     */
+    --shadow-diffuse: 215 30% 25% / 0.05;
+    --shadow-contact: 215 32% 20% / 0.07;
+    /* Couche « marque » : très faible. Doit rester en retrait du gris. */
+    --shadow-brand: 215 28% 22% / 0.08;
 
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 175 40% 7%;
-    --foreground: 160 20% 96%;
+    --background: 222 26% 8%;
+    --foreground: 210 20% 96%;
 
-    --card: 175 35% 10%;
-    --card-foreground: 160 20% 96%;
+    --card: 220 22% 11%;
+    --card-foreground: 210 20% 96%;
 
-    --popover: 175 35% 8%;
-    --popover-foreground: 160 20% 96%;
+    --popover: 220 22% 10%;
+    --popover-foreground: 210 20% 96%;
 
-    --primary: 175 77% 45%;
-    --primary-foreground: 175 60% 10%;
+    /* ardoise éclaircie : en thème sombre, une couleur principale très
+       foncée devenait illisible sur fond noir */
+    --primary: 214 32% 82%;
+    --primary-foreground: 222 40% 10%;
 
-    --secondary: 175 25% 18%;
-    --secondary-foreground: 160 20% 92%;
+    --secondary: 220 18% 18%;
+    --secondary-foreground: 210 20% 92%;
 
-    --muted: 175 25% 16%;
-    --muted-foreground: 160 12% 62%;
+    --muted: 220 16% 17%;
+    --muted-foreground: 215 14% 62%;
 
-    --accent: 25 95% 55%;
-    --accent-foreground: 175 60% 10%;
+    /* sarcelle plus lumineux : l'accent doit ressortir sur fond sombre */
+    --accent: 187 70% 52%;
+    --accent-foreground: 222 40% 10%;
 
-    --destructive: 0 70% 50%;
+    --flag-500: 32 90% 60%;
+
+    --destructive: 0 68% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 175 25% 20%;
-    --input: 175 25% 20%;
-    --ring: 175 77% 45%;
+    --border: 220 16% 22%;
+    --input: 220 16% 22%;
+    --ring: 187 70% 52%;
 
     /*
      * Variantes sombres des variables d'élévation.
@@ -100,19 +145,22 @@
      * 2. Les OMBRES s'éclaircissent fortement. Une ombre noire sur fond noir
      *    est invisible : la carte semblerait découpée, pas posée. On remplace
      *    donc l'ombre d'ombre par une LUMIÈRE — l'ombre diffuse devient un halo
-     *    clair (blanc à 3 %), qui détache la carte du fond.
+     *    clair, qui détache la carte du fond. Teinté légèrement BLEUTÉ (et non
+     *    blanc pur) : sur un fond gris-bleu, un halo blanc pur s'en détache comme
+     *    un gris et crée une auréole. Même famille de couleur = transition
+     *    invisible.
      */
-    --surface: 175 30% 12%;
-    --surface-top: 175 35% 8%;
-    --surface-bottom: 175 40% 6%;
-    --surface-border: 175 25% 20%;
-    --table-head: 175 28% 16%;
-    --table-stripe: 175 30% 14%;
+    --surface: 220 20% 14%;
+    --surface-top: 222 26% 9%;
+    --surface-bottom: 222 30% 7%;
+    --surface-border: 220 16% 22%;
+    --table-head: 220 18% 18%;
+    --table-stripe: 220 20% 16%;
 
     /* Halo clair au lieu d'une ombre : c'est ce qui détache la carte. */
-    --shadow-diffuse: 0 0% 100% / 0.03;
+    --shadow-diffuse: 210 40% 88% / 0.04;
     --shadow-contact: 0 0% 0% / 0.5;
-    --shadow-brand: 45 212 191 / 0.08;
+    --shadow-brand: 210 40% 85% / 0.03;
   }
 }
 
