@@ -90,7 +90,7 @@ export function UpgradeCard({
             )}
 
             <Link
-                href="/settings#abonnement"
+                href="/abonnement"
                 className="mt-3 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-[#4f46e5] text-sm font-medium text-white transition-colors hover:bg-[#4338ca]"
             >
                 Upgrade Now

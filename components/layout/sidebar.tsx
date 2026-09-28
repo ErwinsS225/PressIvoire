@@ -13,6 +13,7 @@ import {
     Truck,
     BarChart3,
     Bell,
+    CreditCard,
     Lock,
 } from "lucide-react";
 import { UpgradeCard } from "@/components/subscription/upgrade-card";
@@ -54,6 +55,7 @@ const navLinks: {
     },
     { href: "/settings", label: "Paramètres", icon: Settings },
     { href: "/equipe", label: "Équipe", icon: Users },
+    { href: "/abonnement", label: "Abonnement", icon: CreditCard },
 ];
 
 export function Sidebar({

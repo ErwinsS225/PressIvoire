@@ -1,8 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Check } from "lucide-react";
 
 import { Header } from "@/components/layout/header";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,7 +15,6 @@ import {
   getEffectivePlan,
   getMonthlyOrderCountForPlan,
 } from "@/lib/subscriptions";
-import { PLANS } from "@/lib/plans";
 import { roleLabel } from "@/lib/constants";
 import { formatFCFA } from "@/lib/utils";
 
@@ -47,17 +46,8 @@ export default async function SettingsPage() {
   }
 
   const context = await getEffectivePlan();
-  const plan = context?.plan ?? PLANS.free;
-  const limits = context?.limits ?? PLANS.free.limits;
+  const plan = context?.plan ?? { id: "free", name: "Gratuit" };
   const isActive = context?.isActive ?? false;
-  const storedPlanId = context?.storedPlanId ?? "free";
-
-  const used = await getMonthlyOrderCountForPlan(pressing.id);
-  const usage = { used, limit: limits.ordersPerMonth };
-  // « Presque atteint » : on previent a 80 % du quota, pour que le gerant
-  // soituguese avant de se faire bloquer en plein enregistrement.
-  const nearQuota =
-    limits.ordersPerMonth !== null && usage.used >= limits.ordersPerMonth * 0.8;
 
   return (
     <div className="flex flex-col gap-8">
@@ -97,15 +87,7 @@ export default async function SettingsPage() {
 
         {/* Abonnement + session */}
         <div className="grid gap-6">
-          {/*
-            `id="abonnement"` : ancre visée par le bouton « Upgrade Now » de
-            la barre latérale. Sans elle, le lien arrive en haut de page et
-            l'utilisateur ne voit pas la section qu'on lui promet.
-
-            `scroll-mt-6` évite que le titre ne passe sous un éventuel
-            en-tête collé.
-          */}
-          <Card id="abonnement" className="scroll-mt-6">
+          <Card>
             <CardHeader>
               <CardTitle>Abonnement</CardTitle>
               <CardDescription>
@@ -113,69 +95,26 @@ export default async function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between rounded-lg bg-slate-900 p-5 text-white">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-medium text-slate-400">Plan actuel</p>
-                  <p className="mt-1 text-2xl font-bold">{plan.name}</p>
+                  <p className="text-sm text-muted-foreground">Plan actuel</p>
+                  <p className="mt-1 text-2xl font-bold">
+                    {plan.name}
+                    {isActive ? (
+                      <span className="ml-2 align-middle text-sm font-medium text-green-700">
+                        Actif
+                      </span>
+                    ) : (
+                      <span className="ml-2 align-middle text-sm font-medium text-red-700">
+                        Expiré
+                      </span>
+                    )}
+                  </p>
                 </div>
-                <Badge variant={isActive ? "success" : "destructive"}>
-                  {isActive ? "Actif" : "Expiré"}
-                </Badge>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/abonnement">Voir les plans</Link>
+                </Button>
               </div>
-
-              {limits.ordersPerMonth !== null ? (
-                <div className="mt-4 grid gap-2">
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Commandes ce mois-ci
-                    </span>
-                    <span className="font-medium tabular-nums">
-                      {usage.used} / {limits.ordersPerMonth}
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={
-                        nearQuota
-                          ? "h-full rounded-full bg-orange-500"
-                          : "h-full rounded-full bg-brand-700"
-                      }
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.round((usage.used / limits.ordersPerMonth) * 100),
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                  {nearQuota ? (
-                    <p className="text-xs text-orange-700">
-                      Quota presque atteint. Le plan Pro supprime cette limite.
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Commandes illimitées.
-                </p>
-              )}
-
-              <ul className="mt-4 grid gap-1">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-green-600" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              {!isActive ? (
-                <p className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
-                  Votre abonnement a expiré. Les capacités du plan{" "}
-                  {PLANS[storedPlanId].name} sont suspendues — renouvelez pour
-                  les retrouver.
-                </p>
-              ) : null}
               <p className="mt-3 text-sm text-muted-foreground">
                 {pressing.subscription_expires_at
                   ? `Renouvellement le ${new Date(
@@ -183,6 +122,12 @@ export default async function SettingsPage() {
                     ).toLocaleDateString("fr-FR")}`
                   : "Aucun renouvellement programmé."}
               </p>
+              {!isActive ? (
+                <p className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
+                  Votre abonnement a expiré. Les capacités du plan payant
+                  sont suspendues — renouvelez pour les retrouver.
+                </p>
+              ) : null}
             </CardContent>
           </Card>
 
