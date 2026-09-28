@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CircleDollarSign, Clock, PackageCheck, Users } from "lucide-react";
@@ -25,10 +23,11 @@ const iconMap = {
 };
 
 /**
- * Tuile d'indicateur, avec profondeur par ombre portée.
+ * Tuile d'indicateur, avec profondeur par ombre portée et zoom au survol.
  *
- * Le composant est un Client Component sans aucun état : il ne l'est que
- * pour que la classe `elev-1` soit composée au bon moment. Aucun coût réel.
+ * Le composant est un Client Component : il porte les effets "press"
+ * (zoom au clic via :active) qui ne peuvent pas s'exprimer en pur CSS
+ * serveur. Aucun état réel, aucun coût.
  */
 export function StatCard({
     title,
@@ -43,14 +42,14 @@ export function StatCard({
 
     return (
         <Card
-            className="elev-1 elev-1--accent stagger-item overflow-hidden border-0"
+            className="elev-1 elev-1--accent zoom-card stagger-item group overflow-hidden border-0"
             style={{ "--stagger-index": index } as React.CSSProperties}
         >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                     {title}
                 </CardTitle>
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700/10 text-brand-700">
+                <span className="zoom-icon flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700/10 text-brand-700">
                     <Icon className="h-4 w-4" />
                 </span>
             </CardHeader>
@@ -60,7 +59,7 @@ export function StatCard({
                 <div className="breathe text-2xl font-bold tabular-nums">
                     {value}
                 </div>
-                <div className="mt-1 flex items-center text-xs text-muted-foreground">
+                <div className="zoom-delta mt-1 flex items-center text-xs text-muted-foreground">
                     <span
                         className={cn(
                             "mr-1 flex items-center gap-1 font-semibold",

@@ -55,7 +55,7 @@ const statusMapping: Record<
 export function RecentOrders({ orders }: RecentOrdersProps) {
     return (
         <Card
-            className="elev-1 stagger-item border-0"
+            className="elev-1 zoom-card zoom-card--panel stagger-item group border-0"
             style={{ "--stagger-index": 5 } as React.CSSProperties}
         >
             <CardHeader>

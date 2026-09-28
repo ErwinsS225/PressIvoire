@@ -749,6 +749,57 @@
   }
 }
 
+/* --- Zoom des cartes du tableau de bord -------------------------------------- */
+
+/*
+ * Les tuiles KPI zooment au survol : la carte monte ET grandit légèrement
+ * (translate + scale combinés). Le scale seul paraîtrait gonflé ; combiné
+ * à la montée, il donne la sensation que la carte vient vers l'œil.
+ *
+ * Valeurs : 1.02 sur les petites tuiles (visible sans casser la grille),
+ * 1.01 sur les grands panneaux (graphique, commandes) pour ne pas
+ * déborder sur le voisin. Le :active resserre (0.98) : c'est le « press »
+ * qui confirme le clic sur tactile comme à la souris.
+ */
+.zoom-card {
+  will-change: transform;
+}
+
+@media (hover: hover) {
+  .zoom-card:hover {
+    transform: translateY(-3px) scale(1.02);
+  }
+
+  .zoom-card--panel:hover {
+    transform: translateY(-3px) scale(1.01);
+  }
+}
+
+.zoom-card:active {
+  transform: translateY(-1px) scale(0.98);
+  transition-duration: 0.12s;
+}
+
+/* Pastille d'icône : elle grandit un cran au-dessus de la carte
+   (1.12 vs 1.02) et pivote légèrement — c'est elle qui porte le mouvement. */
+.zoom-icon {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.group:hover .zoom-icon {
+  transform: scale(1.12) rotate(-6deg);
+}
+
+/* Ligne de variation : glisse légèrement vers la droite au survol,
+   comme si le chiffre entraînait sa variation. */
+.zoom-delta {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.group:hover .zoom-delta {
+  transform: translateX(2px);
+}
+
 /* --- Niveau 3 : panneaux structurels -------------------------------------- */
 
 .elev-3 {
@@ -964,11 +1015,18 @@
  */
 @media (prefers-reduced-motion: reduce) {
   .stagger-item,
-  .breathe {
+  .breathe,
+  .zoom-icon,
+  .zoom-delta {
     animation: none !important;
   }
   .elev-1,
-  .elev-1:hover {
+  .elev-1:hover,
+  .zoom-card,
+  .zoom-card:hover,
+  .zoom-card:active,
+  .group:hover .zoom-icon,
+  .group:hover .zoom-delta {
     transition: none !important;
     transform: none !important;
   }

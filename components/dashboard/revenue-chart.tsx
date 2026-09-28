@@ -24,7 +24,7 @@ interface RevenueChartProps {
 
 export function RevenueChart({ data }: RevenueChartProps) {
     return (
-        <Card className="elev-1 stagger-item border-0" style={{ "--stagger-index": 4 } as React.CSSProperties}>
+        <Card className="elev-1 zoom-card zoom-card--panel stagger-item group border-0" style={{ "--stagger-index": 4 } as React.CSSProperties}>
             <CardHeader>
                 <CardTitle>Chiffre d&apos;affaires</CardTitle>
                 <CardDescription>
