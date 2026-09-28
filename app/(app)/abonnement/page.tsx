@@ -279,14 +279,6 @@ export default async function SubscriptionPage() {
                             (Wave, Orange Money, MTN, Moov) sera branchée, ce bouton
                             paiera directement depuis l&apos;écran.
                         </p>
-                        <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 w-fit"
-                        >
-                            <Link href="/settings">Retour aux paramètres</Link>
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
@@ -305,7 +297,9 @@ function UpgradeCta({ planName }: { planName: string }) {
     return (
         <div className="grid gap-2 border-t pt-4">
             <Button asChild className="w-full">
-                <Link href="/settings">Contacter le support</Link>
+                <Link href="mailto:support@pressplus.ci?subject=Activation%20du%20plan%20Pro">
+                    Contacter le support
+                </Link>
             </Button>
             <p className="text-center text-xs text-muted-foreground">
                 Activation du plan {planName} par le support — le paiement en
