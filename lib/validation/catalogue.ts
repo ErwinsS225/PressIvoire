@@ -30,11 +30,20 @@ export const articleFormSchema = z.object({
     .int("Le délai doit être un nombre entier d'heures.")
     .min(1, "Le délai doit être d'au moins 1 heure.")
     .max(336, "Le délai ne peut pas dépasser 336 heures (14 jours)."),
+  /*
+   * `.nullish()` et non `.optional()` : le type d'entree du formulaire
+   * declare `description?: string | null` (lib/validation/catalogue.ts,
+   * `ArticleFormInput`). Un `.optional()` seul accepterait `undefined` mais
+   * REJETERAIT `null` — alors que `null` est une valeur legitime de la part
+   * d'un appelant, et que la colonne `articles.description` est nullable.
+   * `.nullish()` couvre les deux, et le transform renvoie `null` dans tous
+   * les cas d'absence, ce que la colonne attend.
+   */
   description: z
     .string()
     .trim()
     .max(500, "La description ne peut pas dépasser 500 caractères.")
-    .optional()
+    .nullish()
     .transform((value) => (value ? value : null)),
   /** `"on"` quand la case est cochee dans un formulaire HTML. */
   isActive: z.coerce.boolean(),
