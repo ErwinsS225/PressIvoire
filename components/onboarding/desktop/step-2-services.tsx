@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { OnboardingWizard } from "@/components/onboarding/desktop/wizard";
 import { Trash2 } from "lucide-react";
 import { updatePressingServices } from "@/app/actions/onboarding";
+import { INITIAL_ACTION_STATE } from "@/app/actions/onboarding-state";
 import { useFormState } from "react-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
@@ -24,7 +25,7 @@ type Service = { id: number; name: string; price: number };
 
 export function Step2Services() {
     const router = useRouter();
-    const [state, formAction] = useFormState(updatePressingServices, undefined);
+    const [state, formAction] = useFormState(updatePressingServices, INITIAL_ACTION_STATE);
     const [services, setServices] = useState<Service[]>(
         INITIAL_SERVICES.map((s, i) => ({ ...s, id: i }))
     );

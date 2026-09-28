@@ -103,6 +103,13 @@ export type ForgotPasswordValues = z.output<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z
   .object({
+    /*
+     * Mot de passe actuel : facultatif dans le schema (l'ecran desktop
+     * `/auth/reset-password` ne le demande pas), mais CONTROLE par l'action
+     * des qu'il est fourni. Le schema seul ne peut pas l'exiger : il rendrait
+     * cet ecran inutilisable. Voir `updatePassword()`.
+     */
+    currentPassword: z.string().optional(),
     password,
     confirmPassword: z.string(),
   })

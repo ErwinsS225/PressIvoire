@@ -2,6 +2,7 @@
 
 import { useFormState } from "react-dom";
 import { updatePassword } from "@/app/actions/auth";
+import type { ActionState } from "@/app/actions/auth";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 
 export default function ResetPasswordPage() {
-    const [state, formAction] = useFormState(updatePassword, undefined);
+    // Etat initial explicite : `useFormState` n'accepte pas `undefined`, et
+    // l'inference echoue alors sur le type du premier parametre de l'action.
+    const [state, formAction] = useFormState(updatePassword, {} as ActionState);
 
     return (
         <main className="container flex flex-col items-center justify-center min-h-screen py-12">

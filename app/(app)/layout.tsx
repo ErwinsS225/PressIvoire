@@ -1,21 +1,36 @@
 import { BottomNav } from "@/components/mobile/bottom-nav";
+import { Sidebar } from "@/components/layout/sidebar";
 
 /**
- * Coque de l'application de pressing.
+ * Layout principal de l'application.
  *
- * L'interface de la maquette est concue pour un telephone. Sur grand ecran on
- * la centre dans un cadre de maquette pour ne pas étirer les cartes sur 27
- * pouces ; sur mobile elle occupe tout l'ecran.
+ * Bi-modal, sur une seule base de code :
+ * - mobile  : barre de navigation basse, contenu pleine largeur ;
+ * - desktop : barre latérale fixe, contenu aere.
+ *
+ * Le meme contenu sert les deux — l'application est concue en desktop, et le
+ * responsive se fait par CSS (`md:`), pas par deux applications separees.
  */
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-dvh justify-center bg-slate-100">
-      <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-white md:h-[780px] md:my-8 md:rounded-[2.5rem] md:shadow-[0_50px_100px_-20px_rgba(15,23,42,0.25),0_30px_60px_-30px_rgba(15,23,42,0.3)]">
-        {/* Zone de contenu : elle seule defile, la barre basse reste fixee. */}
-        <div className="min-h-0 flex-1">{children}</div>
+export default async function AppLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="flex min-h-dvh bg-slate-50">
+            {/* Barre laterale : desktop uniquement */}
+            <div className="hidden md:flex">
+                <Sidebar />
+            </div>
 
-        <BottomNav />
-      </div>
-    </div>
-  );
+            <div className="flex min-w-0 flex-1 flex-col">
+                {/* Barre basse : mobile uniquement */}
+                <div className="md:hidden">
+                    <BottomNav />
+                </div>
+
+                <main className="flex-1 p-4 md:p-8">{children}</main>
+            </div>
+        </div>
+    );
 }

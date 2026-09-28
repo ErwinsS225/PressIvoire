@@ -231,6 +231,51 @@ export function roleLabel(role: string | null | undefined): string {
   return ROLE_LABELS[role] ?? role;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Tableau de bord desktop (app/(app)/orders)                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Forme d'une commande consommee par le tableau desktop.
+ *
+ * Les colonnes du tableau etendent la ligne `orders` du client (nom) et le
+ * nombre de lignes, calcule a la lecture. Distincte de `OrderWithClient`
+ * (lib/supabase/queries.ts), qui vit cote serveur : le tableau etant un
+ * composant client, il lui faut un type serialisable et sans dependance.
+ */
+export interface OrderWithClient {
+  id: string;
+  order_number: string;
+  status: string;
+  total: number;
+  amount_paid: number | null;
+  payment_status: string;
+  created_at: string;
+  client: { id: string; full_name: string; phone: string | null } | null;
+  items_count: number;
+}
+
+/**
+ * Rendu d'un statut de commande : variante de badge + libelle francais.
+ *
+ * Inconnu par defaut plutot qu'une erreur : une valeur de statut ajoutee en
+ * base apres deploiement ne doit pas faire tomber la colonne entiere.
+ */
+export const statusMapping: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+> = {
+  pending: { label: "Reçue", variant: "secondary" },
+  pickup_scheduled: { label: "Collecte planifiée", variant: "secondary" },
+  picked_up: { label: "Collectée", variant: "secondary" },
+  in_processing: { label: "En traitement", variant: "default" },
+  ready: { label: "Prête", variant: "default" },
+  out_for_delivery: { label: "En livraison", variant: "outline" },
+  delivered: { label: "Livrée", variant: "outline" },
+  cancelled: { label: "Annulée", variant: "destructive" },
+  disputed: { label: "Litige", variant: "destructive" },
+};
+
 /** Etat lisible d'une commande de livraison (table `deliveries`). */
 export const DELIVERY_STATUS_LABELS: Record<string, string> = {
   assigned: "Affectée",

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/supabase/queries";
 import { onboardingPayloadSchema } from "@/lib/validation/onboarding";
 import type { CatalogArticle } from "@/lib/validation/onboarding";
+import type { ActionState } from "@/app/actions/onboarding-state";
 import { z } from "zod";
 
 /**
@@ -172,10 +173,6 @@ export async function uploadLogo(
   };
 }
 
-type ActionState = {
-  error?: string;
-};
-
 const servicesSchema = z.array(
   z.object({
     name: z.string().min(1, "Le nom du service est requis."),
@@ -212,14 +209,22 @@ export async function updatePressingServices(
   }
 
   const supabase = createClient();
+  /*
+   * Colonnes reelles de la table `articles` (migration 001) : le refactor
+   * ecrivait `delay_hours` / `price_wash` et `category: "clothing"`, qui
+   * n'existent pas — l'insert echouait donc sur une colonne inexistante.
+   * `category` et `wash_type` sont des enumerations controlees par CHECK en
+   * base, pas des textes libres : "clothing" / "dry_cleaning" y sont
+   * rejetés aussi. Valeurs prises dans lib/constants.ts.
+   */
   const articles = parsed.data.map((service) => ({
     pressing_id: pressing.id,
     name: service.name,
-    // Pour l'instant, on met des valeurs par défaut pour les autres champs
-    category: "clothing" as const,
-    wash_type: "dry_cleaning" as const,
-    delay_hours: 48,
-    price_wash: service.price,
+    category: "habit" as const,
+    wash_type: "eau" as const,
+    estimated_hours: 48,
+    price: service.price,
+    is_active: true,
   }));
 
   const { error } = await supabase.from("articles").insert(articles);

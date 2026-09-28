@@ -1,9 +1,23 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { MailCheck } from "lucide-react";
 
-export default function CheckEmailPage() {
+/**
+ * Corps de la page, isole dans son propre composant.
+ *
+ * `useSearchParams()` force le rendu cote client. Utilise directement dans
+ * une page, il fait echouer le prerendu : Next.js ne peut pas lire les
+ * parametres d'URL a la generation statique. L'encapsuler dans un <Suspense>
+ * — comme ci-dessous — permet a Next de prerendre le squelette et de
+ * hydrater la partie dependante de l'URL ensuite.
+ *
+ * Ce n'est donc pas une precaution : c'est la condition pour que la page
+ * existe en build (erreur "useSearchParams() should be wrapped in a
+ * suspense boundary").
+ */
+function CheckEmailContent() {
     const searchParams = useSearchParams();
     const email = searchParams.get("email");
 
@@ -18,7 +32,7 @@ export default function CheckEmailPage() {
                         Vérifiez votre boîte mail
                     </h1>
                     <p className="text-muted-foreground">
-                        Nous avons envoyé un lien de confirmation à l'adresse suivante :
+                        Nous avons envoyé un lien de confirmation à l&apos;adresse suivante :
                     </p>
                     {email && (
                         <p className="font-mono text-lg font-bold">{decodeURIComponent(email)}</p>
@@ -32,5 +46,19 @@ export default function CheckEmailPage() {
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function CheckEmailPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="container flex min-h-screen items-center justify-center py-12">
+                    <p className="text-sm text-muted-foreground">Chargement…</p>
+                </main>
+            }
+        >
+            <CheckEmailContent />
+        </Suspense>
     );
 }

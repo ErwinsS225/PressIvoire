@@ -135,18 +135,213 @@ export async function getContext(): Promise<AppContext> {
 /* Types de vue (formes calibrees pour l'interface)                            */
 /* -------------------------------------------------------------------------- */
 
-export interface DashboardData {
-  /** Chiffre d'affaires encaisse sur la journee (commandes payees). */
-  revenueToday: number;
-  /** Commandes creees aujourd'hui, tous statuts confondus. */
-  ordersToday: number;
-  /** Variation du CA face a la moyenne des 6 derniers jours, en %. */
-  revenueTrend: number | null;
-  inProcessing: number;
-  readyToDeliver: number;
-  /** Commandes du jour a preparer/livrer, les plus recentes d'abord. */
-  toDeliver: OrderWithClient[];
+/* -------------------------------------------------------------------------- */
+/* Dashboard                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Calcule le premier jour du mois, X mois avant aujourd'hui.
+ * @param monthsAgo - Nombre de mois dans le passé. 0 = mois courant.
+ */
+function startOfMonth(monthsAgo: number): Date {
+  const d = new Date();
+  d.setMonth(d.getMonth() - monthsAgo);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
+
+/**
+ * Forme des données pour le nouveau tableau de bord desktop.
+ */
+export interface DashboardData {
+  revenue: {
+    total: number;
+    change: number;
+  };
+  orders: {
+    count: number;
+  };
+  pendingOrders: number;
+  readyOrders: number;
+  newClients: number;
+  monthlyRevenue: { month: string; revenue: number }[];
+  recentOrders: {
+    id: string;
+    total: number;
+    status: OrderStatus;
+    customer: {
+      name: string | null;
+      avatarUrl: string | null;
+    };
+    createdAt: Date;
+  }[];
+}
+
+export async function getOrdersForPressing(
+  pressingId: string,
+): Promise<OrderWithClient[]> {
+  const { db } = await getContext();
+  const { data, error } = await db
+    .from("orders")
+    .select("*, client:clients(id, full_name, phone), order_items(id)")
+    .eq("pressing_id", pressingId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching orders for pressing:", error);
+    throw new Error("Impossible de récupérer les commandes.");
+  }
+
+  return ((data ?? []) as (OrderRow & { client: any; order_items: any })[]).map(
+    (o): OrderWithClient => {
+      const { order_items, client: rawClient, ...rest } = o;
+      const client = Array.isArray(rawClient)
+        ? (rawClient[0] ?? null)
+        : rawClient;
+      return {
+        ...rest,
+        client,
+        items_count: order_items?.length ?? 0,
+      };
+    },
+  );
+}
+
+export async function getDashboardData(
+  pressingId: string,
+): Promise<DashboardData> {
+  const { db } = await getContext();
+
+  const thirtyDaysAgo = startOfMonth(1);
+  const sixtyDaysAgo = startOfMonth(2);
+  const twelveMonthsAgo = startOfMonth(12);
+
+  const [
+    currentMonthOrders,
+    previousMonthOrders,
+    pendingOrders,
+    readyOrders,
+    newClients,
+    monthlyRevenue,
+    recentOrders,
+  ] = await Promise.all([
+    // Revenue
+    db
+      .from("orders")
+      .select("total")
+      .eq("pressing_id", pressingId)
+      .gte("created_at", thirtyDaysAgo.toISOString()),
+    db
+      .from("orders")
+      .select("total")
+      .eq("pressing_id", pressingId)
+      .gte("created_at", sixtyDaysAgo.toISOString())
+      .lt("created_at", thirtyDaysAgo.toISOString()),
+    // KPIs
+    db
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("pressing_id", pressingId)
+      .eq("status", "PENDING"),
+    db
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("pressing_id", pressingId)
+      .eq("status", "READY"),
+    db
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .eq("pressing_id", pressingId)
+      .gte("created_at", thirtyDaysAgo.toISOString()),
+    // Chart
+    db
+      .from("orders")
+      .select("created_at, total")
+      .eq("pressing_id", pressingId)
+      .gte("created_at", twelveMonthsAgo.toISOString()),
+    // Recent Orders
+    db
+      .from("orders")
+      .select("id, total, status, created_at, customer:clients(full_name)")
+      .eq("pressing_id", pressingId)
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
+
+  // Revenue
+  const currentRevenue = (currentMonthOrders.data ?? []).reduce(
+    (sum, o) => sum + o.total,
+    0,
+  );
+  const previousRevenue = (previousMonthOrders.data ?? []).reduce(
+    (sum, o) => sum + o.total,
+    0,
+  );
+  const revenueChange =
+    previousRevenue > 0
+      ? Math.round(((currentRevenue - previousRevenue) / previousRevenue) * 100)
+      : 0;
+
+  // Monthly Revenue Chart
+  const monthlyRevenueMap = new Map<string, number>();
+  const monthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short" });
+
+  for (let i = 11; i >= 0; i--) {
+    const date = startOfMonth(i);
+    const monthName = monthFormatter.format(date);
+    monthlyRevenueMap.set(monthName, 0);
+  }
+
+  (monthlyRevenue.data ?? []).forEach((order) => {
+    const month = monthFormatter.format(new Date(order.created_at));
+    monthlyRevenueMap.set(
+      month,
+      (monthlyRevenueMap.get(month) ?? 0) + order.total,
+    );
+  });
+
+  return {
+    revenue: {
+      total: currentRevenue,
+      change: revenueChange,
+    },
+    orders: {
+      count: currentMonthOrders.data?.length ?? 0,
+    },
+    pendingOrders: pendingOrders.count ?? 0,
+    readyOrders: readyOrders.count ?? 0,
+    newClients: newClients.count ?? 0,
+    monthlyRevenue: Array.from(monthlyRevenueMap.entries()).map(
+      ([month, revenue]) => ({ month, revenue }),
+    ),
+    recentOrders: (recentOrders.data ?? []).map((o) => {
+      // Supabase can return a single object or an array for a joined relation.
+      const rawCustomer = o.customer as
+        | { full_name: string | null }
+        | { full_name: string | null }[]
+        | null;
+      const customer = Array.isArray(rawCustomer)
+        ? (rawCustomer[0] ?? null)
+        : rawCustomer;
+
+      return {
+        id: o.id,
+        total: o.total,
+        status: o.status as OrderStatus,
+        createdAt: new Date(o.created_at),
+        customer: {
+          name: customer?.full_name ?? "Client",
+          avatarUrl: null, // Pas d'avatar pour le moment
+        },
+      };
+    }),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Commandes                                                                    */
+/* -------------------------------------------------------------------------- */
 
 export interface OrderWithClient extends OrderRow {
   client: Pick<ClientRow, "id" | "full_name" | "phone"> | null;
@@ -155,179 +350,6 @@ export interface OrderWithClient extends OrderRow {
 
 export interface OrderDetail extends OrderWithClient {
   items: (OrderItemRow & { article: Pick<ArticleRow, "image_url"> | null })[];
-}
-
-/**
- * Nombre minimal de commandes encaissees sur la periode de reference avant
- * d'afficher une tendance de chiffre d'affaires. En dessous, la comparaison
- * journee / moyenne n'est pas significative (voir getDashboardData).
- */
-const MIN_SAMPLES_FOR_TREND = 5;
-
-/** Fenetre de reference pour la tendance, en jours. */
-const TREND_WINDOW_DAYS = 6;
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                      */
-/* -------------------------------------------------------------------------- */
-
-function startOfToday(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
-
-function startOfDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
-
-/**
- * Colonnes de la relation `client`. Volontairement ecrites en litteral et non
- * par concatenation : supabase-js n'analyse une chaine `select` que si elle est
- * statique, sinon le type de retour retombe sur `GenericStringError` et les
- * relations cessent d'etre typees.
- */
-const CLIENT_FIELDS = "id, full_name, phone" as const;
-
-type OrderWithRelations = OrderRow & {
-  client:
-    | Pick<ClientRow, "id" | "full_name" | "phone">[]
-    | Pick<ClientRow, "id" | "full_name" | "phone">
-    | null;
-  order_items: { id: string }[] | null;
-};
-
-/** Supabase renvoie la relation client en tableau (1-n) ou en objet (n-1). */
-function toOrderWithClient(raw: OrderWithRelations): OrderWithClient {
-  const { order_items, client, ...order } = raw;
-  return {
-    ...order,
-    client: Array.isArray(client) ? (client[0] ?? null) : client,
-    items_count: order_items?.length ?? 0,
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Dashboard                                                                    */
-/* -------------------------------------------------------------------------- */
-
-export async function getDashboardData(
-  pressingId: string,
-): Promise<DashboardData> {
-  const { db } = await getContext();
-  const today = startOfToday();
-
-  const [todayRes, readyRes, processingRes, weekRes, toDeliverRes] =
-    await Promise.all([
-      db
-        .from("orders")
-        .select(
-          "id, total, payment_status, amount_paid, created_at, payment_method",
-        )
-        .eq("pressing_id", pressingId)
-        .gte("created_at", today),
-      db
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("pressing_id", pressingId)
-        .eq("status", ORDER_STATUS.READY),
-      db
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("pressing_id", pressingId)
-        .eq("status", ORDER_STATUS.IN_PROCESSING),
-      db
-        .from("orders")
-        .select(
-          "id, total, payment_status, amount_paid, created_at, payment_method",
-        )
-        .eq("pressing_id", pressingId)
-        .gte("created_at", startOfDaysAgo(TREND_WINDOW_DAYS + 1)),
-      db
-        .from("orders")
-        .select("*, client:clients(id, full_name, phone), order_items(id)")
-        .eq("pressing_id", pressingId)
-        .in("status", [
-          ORDER_STATUS.READY,
-          ORDER_STATUS.IN_PROCESSING,
-          ORDER_STATUS.PICKED_UP,
-        ])
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
-
-  const todayOrders = todayRes.data ?? [];
-  const weekOrders = weekRes.data ?? [];
-
-  const revenueToday = todayOrders
-    .filter(isPaid)
-    .reduce((sum, o) => sum + (o.amount_paid ?? 0), 0);
-
-  // Tendance : journee du jour comparee a la moyenne des 6 jours precedents.
-  // On exige un echantillon suffisant : sinon la moyenne est calculee sur 1 ou
-  // 2 valeurs et le pourcentage devient un chiffre affreux du type "+942 %",
-  // qui n'apprend rien au gerant. Sans echantillon, on n'affiche pas de tendance.
-  const previous = weekOrders.filter((o) => o.created_at < today && isPaid(o));
-  let revenueTrend: number | null = null;
-
-  if (previous.length >= MIN_SAMPLES_FOR_TREND) {
-    const dailyAverage =
-      previous.reduce((sum, o) => sum + (o.amount_paid ?? 0), 0) /
-      TREND_WINDOW_DAYS;
-    if (dailyAverage > 0) {
-      const raw = ((revenueToday - dailyAverage) / dailyAverage) * 100;
-      // Borne a +/-999 % : au-dela, la comparaison n'a plus de sens affichable.
-      revenueTrend = Math.max(-999, Math.min(999, Math.round(raw)));
-    }
-  }
-
-  return {
-    revenueToday,
-    ordersToday: todayOrders.length,
-    revenueTrend,
-    inProcessing: processingRes.count ?? 0,
-    readyToDeliver: readyRes.count ?? 0,
-    toDeliver: (toDeliverRes.data ?? []).map(toOrderWithClient),
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Commandes                                                                    */
-/* -------------------------------------------------------------------------- */
-
-export interface OrderFilters {
-  status?: OrderStatus | "all";
-  search?: string;
-  limit?: number;
-}
-
-/**
- * Neutralise les caracteres qui cassent la syntaxe des filtres PostgREST
- * (`,` `(` `)` `.` `*`). Sans cela, une recherche utilisateur comme
- * "Kone, Ana" produirait une erreur PGRST100, voire un filtre elargi.
- */
-/**
- * Nettoie les termes de recherche pour éviter toute injection SQL.
- * Supprime tous les caractères spéciaux qui pourraient être utilisés pour contourner les filtres.
- */
-function sanitizeFilterTerm(input: string): string {
-  // Supprime TOUS les caractères non alphanumériques/spaces/tirets/apos
-  return input
-    .replace(/[^a-zA-Z0-9\s '-]/g, " ")
-    .trim()
-    .slice(0, 100); // Limite la longueur
-}
-
-/**
- * Valide qu'un UUID est bien formaté (empêche toute injection dans les IN clauses)
- */
-function isValidUUID(uuid: string): boolean {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
 }
 
 export async function getOrders(
@@ -380,7 +402,19 @@ export async function getOrders(
   }
 
   const { data } = await query;
-  return ((data ?? []) as OrderWithRelations[]).map(toOrderWithClient);
+  return ((data ?? []) as (OrderRow & { client: any; order_items: any })[]).map(
+    (o): OrderWithClient => {
+      const { order_items, client: rawClient, ...rest } = o;
+      const client = Array.isArray(rawClient)
+        ? (rawClient[0] ?? null)
+        : rawClient;
+      return {
+        ...rest,
+        client,
+        items_count: order_items?.length ?? 0,
+      };
+    },
+  );
 }
 
 export async function getOrderDetail(
@@ -390,12 +424,6 @@ export async function getOrderDetail(
   if (!pressing) return null;
 
   // Validation stricte des UUIDs pour éviter les accès non autorisés
-  function isValidUUID(uuid: string): boolean {
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
-  }
-
   if (!isValidUUID(orderId)) return null;
 
   // Vérification OBLIGATOIRE que la commande appartient bien au pressing de l'utilisateur
@@ -425,6 +453,38 @@ export async function getOrderDetail(
   };
 }
 
+/**
+ * Neutralise les caracteres qui cassent la syntaxe des filtres PostgREST
+ * (`,` `(` `)` `.` `*`). Sans cela, une recherche utilisateur comme
+ * "Kone, Ana" produirait une erreur PGRST100, voire un filtre elargi.
+ */
+/**
+ * Nettoie les termes de recherche pour éviter toute injection SQL.
+ * Supprime tous les caractères spéciaux qui pourraient être utilisés pour contourner les filtres.
+ */
+function sanitizeFilterTerm(input: string): string {
+  // Supprime TOUS les caractères non alphanumériques/spaces/tirets/apos
+  return input
+    .replace(/[^a-zA-Z0-9\s '-]/g, " ")
+    .trim()
+    .slice(0, 100); // Limite la longueur
+}
+
+/**
+ * Valide qu'un UUID est bien formaté (empêche toute injection dans les IN clauses)
+ */
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+export interface OrderFilters {
+  status?: OrderStatus | "all";
+  search?: string;
+  limit?: number;
+}
+
 /** Compte les commandes du mois courant (indicateur de l'en-tete). */
 export async function getMonthlyOrderCount(
   pressingId: string,
@@ -447,26 +507,33 @@ export async function getMonthlyOrderCount(
 /* Clients & articles                                                           */
 /* -------------------------------------------------------------------------- */
 
-export async function getClients(
-  pressingId: string,
-  search = "",
-): Promise<ClientRow[]> {
-  const { db } = await getContext();
+/**
+ * Annuaire des clients du pressing courant.
+ *
+ * Le `pressingId` est FACULTATIF et volontairement ignore : la fonction
+ * resout toujours le pressing depuis la session (`getContext`). Le parametre
+ * est tolere pour la compatibilite avec les appelants qui le fournissent, et
+ * on verifie qu'il designe bien le pressing courant plutot que de l'ignorer
+ * silencieusement — un appelant qui passerait l'ID d'un autre tenant doit
+ * echouer, pas lire les mauvais clients.
+ */
+export async function getClients(pressingId?: string) {
+  const { db, pressing } = await getContext();
+  if (!pressing) return [];
+  if (pressingId && pressingId !== pressing.id) return [];
 
-  let query = db
+  const { data, error } = await db
     .from("clients")
     .select("*")
-    .eq("pressing_id", pressingId)
-    .is("deleted_at", null)
-    .order("full_name");
+    .eq("pressing_id", pressing.id)
+    .order("created_at", { ascending: false });
 
-  const term = sanitizeFilterTerm(search);
-  if (term) {
-    query = query.or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`);
+  if (error) {
+    console.error("Error fetching clients:", error);
+    return [];
   }
 
-  const { data } = await query.limit(50);
-  return data ?? [];
+  return data;
 }
 
 export async function getArticles(
@@ -756,9 +823,20 @@ export async function getClientDetail(
       .order("created_at", { ascending: false }),
   ]);
 
-  const orders = ((ordersRes.data ?? []) as OrderWithRelations[]).map(
-    toOrderWithClient,
-  );
+  // Même logique de transformation que dans getOrders()
+  const orders = (
+    (ordersRes.data ?? []) as (OrderRow & { client: any; order_items: any })[]
+  ).map((o): OrderWithClient => {
+    const { order_items, client: rawClient, ...rest } = o;
+    const client = Array.isArray(rawClient)
+      ? (rawClient[0] ?? null)
+      : rawClient;
+    return {
+      ...rest,
+      client,
+      items_count: order_items?.length ?? 0,
+    };
+  });
   const billable = orders.filter(
     (order) => order.status !== ORDER_STATUS.CANCELLED,
   );
@@ -819,13 +897,17 @@ export async function getCashRegister(
 ): Promise<CashRegister> {
   const { db } = await getContext();
 
+  // Créé la date du début d'aujourd'hui (minuit)
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
   const [paymentsRes, unpaidRes] = await Promise.all([
     db
       .from("payments")
       .select("*")
       .eq("pressing_id", pressingId)
       .eq("status", "success")
-      .gte("paid_at", startOfToday())
+      .gte("paid_at", startOfToday.toISOString())
       .order("paid_at", { ascending: false })
       .limit(100),
     db
@@ -881,8 +963,18 @@ export async function getCashRegister(
   }
 
   const outstandingOrders = (
-    (unpaidRes.data ?? []) as OrderWithRelations[]
-  ).map(toOrderWithClient);
+    (unpaidRes.data ?? []) as (OrderRow & { client: any; order_items: any })[]
+  ).map((o): OrderWithClient => {
+    const { order_items, client: rawClient, ...rest } = o;
+    const client = Array.isArray(rawClient)
+      ? (rawClient[0] ?? null)
+      : rawClient;
+    return {
+      ...rest,
+      client,
+      items_count: order_items?.length ?? 0,
+    };
+  });
 
   return {
     collectedToday: payments.reduce((sum, payment) => sum + payment.amount, 0),
@@ -976,12 +1068,39 @@ export async function getDeliveryBoard(
       .limit(40),
   ]);
 
-  const toDeliver = ((toDeliverRes.data ?? []) as OrderWithRelations[]).map(
-    toOrderWithClient,
-  );
-  const toCollect = ((toCollectRes.data ?? []) as OrderWithRelations[]).map(
-    toOrderWithClient,
-  );
+  // Transforme les données brutes en OrderWithClient
+  const toDeliver = (
+    (toDeliverRes.data ?? []) as (OrderRow & {
+      client: any;
+      order_items: any;
+    })[]
+  ).map((o): OrderWithClient => {
+    const { order_items, client: rawClient, ...rest } = o;
+    const client = Array.isArray(rawClient)
+      ? (rawClient[0] ?? null)
+      : rawClient;
+    return {
+      ...rest,
+      client,
+      items_count: order_items?.length ?? 0,
+    };
+  });
+  const toCollect = (
+    (toCollectRes.data ?? []) as (OrderRow & {
+      client: any;
+      order_items: any;
+    })[]
+  ).map((o): OrderWithClient => {
+    const { order_items, client: rawClient, ...rest } = o;
+    const client = Array.isArray(rawClient)
+      ? (rawClient[0] ?? null)
+      : rawClient;
+    return {
+      ...rest,
+      client,
+      items_count: order_items?.length ?? 0,
+    };
+  });
   const missions = missionsRes.data ?? [];
 
   // Numero de commande et client des missions, resolus en une requete.
@@ -1090,13 +1209,18 @@ export interface ReportData {
 export async function getReports(pressingId: string): Promise<ReportData> {
   const { db } = await getContext();
 
+  // Créé la date de début il y a X jours
+  const startOfDaysAgo = new Date();
+  startOfDaysAgo.setDate(startOfDaysAgo.getDate() - (REPORT_WINDOW_DAYS - 1));
+  startOfDaysAgo.setHours(0, 0, 0, 0);
+
   const { data: orderRows } = await db
     .from("orders")
     .select(
       "id, status, payment_status, total, amount_paid, payment_method, created_at, client_id",
     )
     .eq("pressing_id", pressingId)
-    .gte("created_at", startOfDaysAgo(REPORT_WINDOW_DAYS - 1))
+    .gte("created_at", startOfDaysAgo.toISOString())
     .order("created_at", { ascending: false })
     .limit(REPORT_ORDER_LIMIT);
 

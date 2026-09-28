@@ -7,6 +7,7 @@ import { OnboardingWizard } from "@/components/onboarding/desktop/wizard";
 import { cn } from "@/lib/utils";
 import { CheckCircle } from "lucide-react";
 import { updatePressingPlan } from "@/app/actions/onboarding";
+import { INITIAL_ACTION_STATE } from "@/app/actions/onboarding-state";
 import { useFormState } from "react-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
@@ -41,7 +42,7 @@ const PLANS = [
 
 export function Step3Plan() {
     const router = useRouter();
-    const [state, formAction] = useFormState(updatePressingPlan, undefined);
+    const [state, formAction] = useFormState(updatePressingPlan, INITIAL_ACTION_STATE);
     const [selectedPlan, setSelectedPlan] = useState("premium");
 
     return (

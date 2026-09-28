@@ -280,6 +280,7 @@ export async function updatePassword(
   formData: FormData,
 ): Promise<ActionState> {
   const parsed = resetPasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword") || undefined,
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
   });
@@ -289,6 +290,44 @@ export async function updatePassword(
   }
 
   const supabase = createClient();
+
+  /*
+   * Verification du mot de passe actuel, lorsqu'il est fourni.
+   *
+   * L'ecran mobile (`/(auth)/reset-password`) le demande ; l'ecran desktop
+   * (`/auth/reset-password`) ne le demande pas. On applique donc le controle
+   * dans la mesure ou l'information est disponible, sans rendre le second
+   * ecran inutilisable.
+   *
+   * Rappel de la raison : un lien de reinitialisation transite par la boite
+   * mail, qui n'est pas un canal sur. Exiger le mot de passe actuel — quand on
+   * le possede — empeche qu'un lien intercepte suffise a prendre le compte.
+   *
+   * On ne clot PAS la session a cette etape : la session de recovery reste en
+   * place, donc l'utilisateur peut ressaisir son mot de passe sans repasser
+   * par sa boite mail.
+   */
+  if (parsed.data.currentPassword) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.email) {
+      return {
+        error:
+          "Lien de réinitialisation invalide ou expiré. Demandez-en un nouveau.",
+      };
+    }
+
+    const { error: checkError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: parsed.data.currentPassword,
+    });
+
+    if (checkError) {
+      return { fieldErrors: { currentPassword: "Mot de passe actuel incorrect." } };
+    }
+  }
 
   // La session de type "recovery" (issue du lien de l'email) autorise
   // directement la mise a jour du mot de passe.

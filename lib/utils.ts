@@ -29,10 +29,14 @@ export function formatRelativeDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return "";
 
   const now = new Date();
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const startOf = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((startOf(now) - startOf(date)) / 86_400_000);
 
-  const time = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const time = date.toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   if (days === 0) return `Aujourd'hui ${time}`;
   if (days === 1) return `Hier ${time}`;
@@ -53,7 +57,9 @@ export function formatElapsed(iso: string): string {
   const days = Math.floor(hours / 24);
   if (days < 30) return `il y a ${days} j`;
   const months = Math.floor(days / 30);
-  return months < 12 ? `il y a ${months} mois` : `il y a ${Math.floor(months / 12)} an(s)`;
+  return months < 12
+    ? `il y a ${months} mois`
+    : `il y a ${Math.floor(months / 12)} an(s)`;
 }
 
 /** Normalise un numero ivoirien : "07 00 00 00 00" -> "+2250700000000". */
@@ -98,6 +104,14 @@ export function safeRedirectPath(
   return path;
 }
 
+/** Extrait les initiales d'un nom complet pour les avatars : "Jean Dupont" -> "JD". */
+export function getInitials(fullName: string): string {
+  if (!fullName) return "";
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
 /** Valide un numero ivoirien au format +225 + 8 a 10 chiffres. */
 export function isValidIvorianPhone(input: string): boolean {
   return /^\+225[0-9]{8,10}$/.test(input);
@@ -123,7 +137,11 @@ export function isValidIvorianPhone(input: string): boolean {
  * Le delai est lui-meme plafonne a `maxIndex` pour qu'une liste de 80 clients
  * n'impose pas 4 secondes d'attente avant l'affichage du dernier.
  */
-export function staggerStyle(index: number, step = 45, maxIndex = 12): CSSProperties {
+export function staggerStyle(
+  index: number,
+  step = 45,
+  maxIndex = 12,
+): CSSProperties {
   return {
     "--stagger-delay": `${Math.min(Math.max(index, 0), maxIndex) * step}ms`,
   } as CSSProperties;
@@ -135,3 +153,26 @@ export function barStyle(index: number, step = 70): CSSProperties {
     "--bar-delay": `${Math.max(index, 0) * step}ms`,
   } as CSSProperties;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Helpers du tableau de bord desktop (app/(app)/orders)                       */
+/* -------------------------------------------------------------------------- */
+
+/** Montant pour le tableau de bord : 4000 -> "4 000 FCFA". */
+export function formatCurrency(amount: number): string {
+  return formatFCFA(amount);
+}
+
+/** Date + heure pour le tableau de bord : "27/09/2026 14:30". */
+export function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
