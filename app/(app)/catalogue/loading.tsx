@@ -1,4 +1,4 @@
-import { ListScreenSkeleton } from "@/components/mobile/skeleton";
+import { ListScreenSkeleton } from "@/components/ui/skeleton";
 
 /**
  * Repli de chargement du catalogue.

@@ -41,9 +41,8 @@ function describeError(message: string): string {
 
 function revalidateCatalogue() {
   revalidatePath("/catalogue");
-  revalidatePath("/plus");
   // Le catalogue alimente la prise de commande et les indicateurs tarifaires.
-  revalidatePath("/commandes/nouvelle");
+  revalidatePath("/orders/new");
   revalidatePath("/dashboard");
 }
 

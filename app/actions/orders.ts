@@ -64,8 +64,8 @@ export async function advanceOrderStatus(orderId: string, pressingId: string) {
     .eq("id", orderId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/commandes/${orderId}`);
-  revalidatePath("/commandes");
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
   revalidatePath("/dashboard");
   revalidatePath("/livraisons");
   return next;
@@ -103,8 +103,8 @@ export async function recordPayment(
   });
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/commandes/${orderId}`);
-  revalidatePath("/commandes");
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
   revalidatePath("/dashboard");
   revalidatePath("/caisse");
 }
@@ -203,7 +203,7 @@ export async function createOrder(input: NewOrderInput): Promise<{ orderId: stri
     throw new Error(itemsError.message);
   }
 
-  revalidatePath("/commandes");
+  revalidatePath("/orders");
   revalidatePath("/dashboard");
   return { orderId: order.id };
 }

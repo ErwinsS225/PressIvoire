@@ -4,9 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createOrder } from "@/app/actions/orders";
-import { Avatar } from "@/components/mobile/avatar";
-import { ProgressSteps } from "@/components/mobile/progress-steps";
-import { EmptyState } from "@/components/mobile/order-card";
+import { Avatar } from "@/components/ui/avatar-initials";
+import { ProgressSteps } from "@/components/ui/progress-steps";
+import { EmptyState } from "@/components/ui/empty-state";
 import { WASH_TYPE_LABELS, type WashType } from "@/lib/constants";
 import { cn, formatAmount } from "@/lib/utils";
 
@@ -466,7 +466,7 @@ function SuccessPanel({ orderId }: { orderId: string }) {
         <div className="mt-6 space-y-2">
           <button
             type="button"
-            onClick={() => router.push(`/commandes/${orderId}`)}
+            onClick={() => router.push(`/orders/${orderId}`)}
             className="btn-press w-full rounded-xl bg-slate-900 py-4 font-bold text-white transition hover:bg-slate-800"
           >
             Voir la commande

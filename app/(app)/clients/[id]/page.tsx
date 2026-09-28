@@ -1,11 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Screen, ScreenHeader, SectionTitle } from "@/components/mobile/screen";
-import { Avatar } from "@/components/mobile/avatar";
-import { OrderCard, EmptyState } from "@/components/mobile/order-card";
-import { StatCard } from "@/components/mobile/stat-card";
+import { Phone, MessageCircle, PlusCircle } from "lucide-react";
+
+import { Header } from "@/components/layout/header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getClientDetail, getContext, type OrderWithClient } from "@/lib/supabase/queries";
-import { formatAmount, formatElapsed, formatFCFA, staggerStyle } from "@/lib/utils";
+import { statusMapping } from "@/lib/constants";
+import { formatElapsed, formatFCFA } from "@/lib/utils";
 
 /**
  * Fiche client.
@@ -29,138 +47,145 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const phoneDigits = (client.phone ?? "").replace(/\D/g, "");
 
   return (
-    <Screen>
-      <ScreenHeader title={client.full_name} subtitle={client.commune ?? undefined} backHref="/clients" />
+    <div className="flex flex-col gap-8">
+      <Header title={client.full_name} subtitle={client.commune ?? undefined}>
+        <Button asChild variant="outline">
+          <Link href="/clients">Tous les clients</Link>
+        </Button>
+      </Header>
 
-      {/* Identite + contact direct */}
-      <div className="px-5">
-        <div className="animate-slide-up flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4">
-          <Avatar name={client.full_name} size="lg" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-bold text-slate-900">{client.full_name}</p>
-            <p className="truncate text-xs text-slate-500">
-              {client.phone ?? "Téléphone non renseigné"}
-            </p>
-            <p className="truncate text-[11px] text-slate-400">
+      <section className="grid gap-6 lg:grid-cols-3">
+        {/* Identite et contact */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Coordonnées</CardTitle>
+            <CardDescription>
               {stats.lastOrderAt
                 ? `Dernière commande ${formatElapsed(stats.lastOrderAt)}`
                 : "Aucune commande pour l'instant"}
-            </p>
-          </div>
-        </div>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Téléphone</p>
+              <p className="font-medium">
+                {client.phone ?? "Non renseigné"}
+              </p>
+            </div>
+            {client.email ? (
+              <div>
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="truncate font-medium">{client.email}</p>
+              </div>
+            ) : null}
+            {client.address ? (
+              <div>
+                <p className="text-sm text-muted-foreground">Adresse</p>
+                <p className="font-medium">{client.address}</p>
+              </div>
+            ) : null}
 
-        {/* Raccourcis : appeler, WhatsApp, commander */}
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <ContactAction
-            href={client.phone ? `tel:${client.phone}` : undefined}
-            icon="📞"
-            label="Appeler"
-          />
-          <ContactAction
-            href={phoneDigits ? `https://wa.me/${phoneDigits}` : undefined}
-            icon="💬"
-            label="WhatsApp"
-            external
-          />
-          <ContactAction
-            href={`/commandes/nouvelle?client=${client.id}`}
-            icon="➕"
-            label="Commander"
-          />
-        </div>
-      </div>
+            <div className="flex flex-wrap gap-2 border-t pt-4">
+              {client.phone ? (
+                <Button asChild variant="outline" size="sm">
+                  <a href={`tel:${client.phone}`}>
+                    <Phone className="h-4 w-4" />
+                    Appeler
+                  </a>
+                </Button>
+              ) : null}
+              {phoneDigits ? (
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={`https://wa.me/${phoneDigits}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp
+                  </a>
+                </Button>
+              ) : null}
+              <Button asChild size="sm">
+                <Link href={`/orders/new?client=${client.id}`}>
+                  <PlusCircle className="h-4 w-4" />
+                  Nouvelle commande
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Chiffres cles */}
-      <div className="mt-5 grid grid-cols-2 gap-3 px-5">
-        <StatCard
-          index={0}
-          variant="solid"
-          label="Total encaissé"
-          value={formatAmount(stats.revenue)}
-          unit="FCFA"
-          hint={
-            <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-400" />
-              {stats.ordersCount} commande{stats.ordersCount > 1 ? "s" : ""} au total
-            </span>
-          }
-        />
-        <StatCard
-          index={1}
-          icon="⏳"
-          iconClass={stats.outstanding > 0 ? "bg-amber-50" : "bg-slate-100"}
-          value={formatAmount(stats.outstanding)}
-          unit="FCFA"
-          label="Reste à encaisser"
-          accent={stats.outstanding > 0 ? "text-amber-700" : undefined}
-        />
-        <StatCard
-          index={2}
-          icon="🎁"
-          iconClass="bg-orange-50"
-          value={client.loyalty_points}
-          label="Points de fidélité"
-        />
-      </div>
+        {/* Chiffres cles */}
+        <div className="grid content-start gap-4 sm:grid-cols-3 lg:col-span-2">
+          <Kpi
+            title="Total encaissé"
+            value={formatFCFA(stats.revenue)}
+            detail={`${stats.ordersCount} commande${stats.ordersCount > 1 ? "s" : ""} au total`}
+          />
+          <Kpi
+            title="Reste à encaisser"
+            value={formatFCFA(stats.outstanding)}
+            detail="Sur les commandes en cours"
+            tone={stats.outstanding > 0 ? "warning" : "default"}
+          />
+          <Kpi
+            title="Points de fidélité"
+            value={String(client.loyalty_points)}
+            detail="Solde fidélité"
+          />
 
-      {client.notes ? (
-        <div className="mt-5 px-5">
-          <SectionTitle>Note interne</SectionTitle>
-          <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-900">
-            {client.notes}
-          </p>
+          {client.notes ? (
+            <Card className="border-amber-200 bg-amber-50 sm:col-span-3">
+              <CardHeader>
+                <CardTitle className="text-amber-900">Note interne</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-amber-900">{client.notes}</p>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
-      ) : null}
+      </section>
 
       <ClientPacks packs={packs} />
       <ClientOrders orders={orders} />
-    </Screen>
+    </div>
   );
 }
 
-/**
- * Raccourci de contact.
- *
- * Rendu en `<a>` et non en `<button>` : `tel:` et `https://wa.me` doivent
- * ouvrir l'application native du telephone, ce qu'un bouton gere en
- * JavaScript ne ferait pas de facon fiable.
- */
-function ContactAction({
-  href,
-  icon,
-  label,
-  external,
+/** Tuile d'indicateur : un libelle, une valeur, une precision. */
+function Kpi({
+  title,
+  value,
+  detail,
+  tone = "default",
 }: {
-  href?: string;
-  icon: string;
-  label: string;
-  external?: boolean;
+  title: string;
+  value: string;
+  detail: string;
+  tone?: "default" | "warning";
 }) {
-  const classes =
-    "btn-press flex flex-col items-center gap-1 rounded-xl border border-slate-100 bg-white py-3 text-center transition";
-
-  if (!href) {
-    return (
-      <span className={`${classes} opacity-40`} aria-disabled>
-        <span className="text-lg" aria-hidden>
-          {icon}
-        </span>
-        <span className="text-[11px] font-semibold text-slate-400">{label}</span>
-      </span>
-    );
-  }
-
   return (
-    <a
-      href={href}
-      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={`${classes} hover:bg-slate-50`}
-    >
-      <span className="text-lg" aria-hidden>
-        {icon}
-      </span>
-      <span className="text-[11px] font-semibold text-slate-700">{label}</span>
-    </a>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p
+          className={
+            tone === "warning"
+              ? "text-2xl font-bold text-orange-600"
+              : "text-2xl font-bold"
+          }
+        >
+          {value}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -188,77 +213,143 @@ function ClientPacks({
   };
 
   return (
-    <section className="mt-6 px-5">
-      <SectionTitle>Forfaits</SectionTitle>
-      <div className="space-y-2">
-        {packs.map((pack, index) => {
-          const remaining = pack.total_quantity - pack.used_quantity;
-          const ratio = pack.total_quantity > 0 ? remaining / pack.total_quantity : 0;
+    <Card>
+      <CardHeader>
+        <CardTitle>Forfaits</CardTitle>
+        <CardDescription>
+          Forfaits pré-payés : chaque lavage décrémente le quota restant.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Forfait</TableHead>
+              <TableHead className="text-right">Prix</TableHead>
+              <TableHead>Consommation</TableHead>
+              <TableHead>Expire le</TableHead>
+              <TableHead>Statut</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {packs.map((pack) => {
+              const remaining = pack.total_quantity - pack.used_quantity;
 
-          return (
-            <div
-              key={pack.id}
-              className="stagger-item rounded-xl border border-slate-100 bg-white p-3"
-              style={staggerStyle(index)}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-semibold text-slate-900">{pack.name}</p>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                  {PACK_STATUS_LABELS[pack.status] ?? pack.status}
-                </span>
-              </div>
-
-              {/* Jauge de consommation : se remplit a l'affichage. */}
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-600 transition-all duration-700 ease-out"
-                  style={{ width: `${Math.round(ratio * 100)}%` }}
-                />
-              </div>
-
-              <p className="mt-1.5 text-xs text-slate-500">
-                {remaining} / {pack.total_quantity} article{pack.total_quantity > 1 ? "s" : ""} restant
-                {remaining > 1 ? "s" : ""} · payé {formatFCFA(pack.price)}
-                {pack.expires_at
-                  ? ` · expire le ${new Date(pack.expires_at).toLocaleDateString("fr-FR")}`
-                  : ""}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+              return (
+                <TableRow key={pack.id}>
+                  <TableCell className="font-medium">{pack.name}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatFCFA(pack.price)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      {/* Jauge : la largeur represente la part RESTANTE,
+                          donc elle se vide a l'usage. */}
+                      <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-orange-500"
+                          style={{
+                            width: `${Math.round(
+                              pack.total_quantity > 0
+                                ? (remaining / pack.total_quantity) * 100
+                                : 0,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="whitespace-nowrap text-sm text-muted-foreground">
+                        {remaining} / {pack.total_quantity}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {pack.expires_at
+                      ? new Date(pack.expires_at).toLocaleDateString("fr-FR")
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={pack.status === "active" ? "success" : "muted"}
+                    >
+                      {PACK_STATUS_LABELS[pack.status] ?? pack.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 
 /** Historique des commandes du client. */
 function ClientOrders({ orders }: { orders: OrderWithClient[] }) {
   return (
-    <section className="mt-6 px-5">
-      <SectionTitle
-        action={
-          <Link href="/commandes" className="text-xs font-semibold text-orange-500">
-            Toutes &rarr;
-          </Link>
-        }
-      >
-        Historique ({orders.length})
-      </SectionTitle>
-
-      {orders.length === 0 ? (
-        <EmptyState
-          icon="🧾"
-          title="Aucune commande"
-          hint="La première commande de ce client apparaîtra ici."
-        />
-      ) : (
-        <div className="space-y-2">
-          {orders.map((order, index) => (
-            <OrderCard key={order.id} order={order} className="stagger-item" style={staggerStyle(index)} />
-          ))}
-        </div>
-      )}
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle>Historique des commandes</CardTitle>
+        <CardDescription>
+          Les {orders.length} commande{orders.length > 1 ? "s" : ""} de ce
+          client, de la plus récente à la plus ancienne.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Commande</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Payé</TableHead>
+              <TableHead className="text-right">Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.length === 0 ? (
+              <TableEmpty colSpan={5}>
+                Aucune commande. La première apparaîtra ici.
+              </TableEmpty>
+            ) : (
+              orders.map((order) => {
+                const status = statusMapping[order.status];
+                return (
+                  <TableRow key={order.id}>
+                    <TableCell>
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {order.order_number}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      {status ? (
+                        <Badge variant={status.variant}>{status.label}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {order.status}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatFCFA(order.total)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatFCFA(order.amount_paid ?? 0)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {new Date(order.created_at).toLocaleDateString("fr-FR")}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 
