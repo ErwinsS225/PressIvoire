@@ -21,6 +21,24 @@ const config: Config = {
       },
       colors: {
         /*
+         * BLEU DES BOUTONS.
+         *
+         * Déclaré ici pour que les classes `bg-button`, `text-button-strong`,
+         * etc. existent dans le CSS généré. Les valeurs pointent sur des
+         * VARIABLES CSS, pas sur des hex.
+         *
+         * C'est la seule façon fiable : écrire `bg-[#2563EB]` directement dans
+         * un composant fonctionne en développement, mais Tailwind peut
+         *PURGER la classe au build — le build « passe » sans erreur et le
+         * bouton sort INCOLORE en production. Une variable déclarée dans
+         * globals.css n'a pas ce risque.
+         */
+        button: {
+          DEFAULT: "hsl(var(--button))",
+          strong: "hsl(var(--button-strong))",
+          deep: "hsl(var(--button-deep))",
+        },
+        /*
          * Brand PressingPro — ARDOISE BLEUTÉE.
          *
          * Ces valeurs pointent sur les variables CSS, pas sur des hex : c'est

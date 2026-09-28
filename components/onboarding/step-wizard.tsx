@@ -39,7 +39,7 @@ export function StepWizard({
                   <Link
                     href={`/onboarding/pressing/step-${item.n}`}
                     aria-label={`Revenir à l'étape ${item.n}`}
-                    className="btn-press flex h-8 w-8 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white"
+                    className="btn-press flex h-8 w-8 items-center justify-center rounded-full bg-button text-xs font-bold text-white"
                   >
                     ✓
                   </Link>

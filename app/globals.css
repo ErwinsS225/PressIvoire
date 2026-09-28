@@ -55,6 +55,31 @@
     /* ambre — signal : compteurs, alertes, dégradés des barres */
     --flag-500: 28 88% 52%;
 
+    /*
+     * BLEU DES BOUTONS.
+     *
+     * Déclaré en variable CSS, et utilisé via `bg-button` / `hover:bg-button-strong`.
+     *
+     * Pourquoi ne pas écrire `bg-[#2563EB]` directement dans les composants :
+     * Tailwind purge les classes construites dynamiquement, et le build
+     * « passe » sans jamais les générer — les boutons resteraient INCOLORES
+     * en production, sans la moindre erreur pour le signaler. Une variable
+     * CSS déclarée dans globals.css n'a pas ce risque : elle existe toujours.
+     *
+     * Contraste vérifié (WCAG, texte blanc 14 px) :
+     *   #3B82F6  3.68:1  ✗ grand texte seulement
+     *   #2563EB  5.17:1  ✓ AA texte normal  ← `--button`
+     *   #1D4ED8  6.70:1  ✓ AA               ← `--button-strong` (survol)
+     */
+    --button: 221 83% 53%;
+    --button-strong: 224 76% 48%;
+    --button-deep: 226 57% 33%;
+
+    /* En thème sombre, ces bleus sont inchangés : ils restent assez clairs
+       sur fond sombre, et le contraste texte blanc / fond tient toujours.
+       (Alternative : un bleu plus profond à 12 % — mais le blanc y gagne en
+       contraste, au prix d'un bouton qui « s'enfonce » au lieu de ressortir.) */
+
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 

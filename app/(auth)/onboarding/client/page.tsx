@@ -88,7 +88,7 @@ export default async function ClientOnboardingPage() {
         </p>
         <Link
           href="/register"
-          className="btn-press mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-flag-500 px-4 text-sm font-bold text-white transition hover:bg-flag-600"
+          className="btn-press mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-button px-4 text-sm font-bold text-white transition hover:bg-button-strong"
         >
           Créer un compte pressing
         </Link>

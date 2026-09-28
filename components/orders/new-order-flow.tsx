@@ -306,7 +306,7 @@ export function NewOrderFlow({
             type="button"
             disabled={isPending || cart.length === 0}
             onClick={submit}
-            className="btn-press w-full rounded-xl bg-orange-500 py-4 font-bold text-white transition hover:bg-orange-600 disabled:opacity-60"
+            className="btn-press w-full rounded-xl bg-button py-4 font-bold text-white transition hover:bg-button-strong disabled:opacity-60"
           >
             {isPending ? "Enregistrement…" : "Valider la commande"}
           </button>
@@ -329,7 +329,7 @@ export function NewOrderFlow({
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="btn-press rounded-xl bg-orange-500 px-6 py-3 font-bold text-white transition hover:bg-orange-600"
+              className="btn-press rounded-xl bg-button px-6 py-3 font-bold text-white transition hover:bg-button-strong"
             >
               Continuer &rarr;
             </button>
@@ -404,7 +404,7 @@ function QuantityControl({
         type="button"
         onClick={() => onChange(1)}
         aria-label={`Ajouter un ${label}`}
-        className="btn-press flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 font-bold text-white"
+        className="btn-press flex h-8 w-8 items-center justify-center rounded-full bg-button font-bold text-white"
       >
         +
       </button>

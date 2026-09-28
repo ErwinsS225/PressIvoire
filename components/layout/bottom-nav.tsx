@@ -50,11 +50,11 @@ export function BottomNav() {
           <Link
             href="/orders/new"
             aria-label="Nouvelle commande"
-            className="btn-press absolute -top-5 flex h-14 w-14 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg transition hover:bg-orange-600"
+            className="btn-press absolute -top-5 flex h-14 w-14 items-center justify-center rounded-full bg-button text-white shadow-lg transition hover:bg-button-strong"
           >
             <Plus className="h-7 w-7" aria-hidden />
           </Link>
-          <span className="mt-8 text-[10px] font-semibold text-orange-500">
+          <span className="mt-8 text-[10px] font-semibold text-button-strong">
             Nouveau
           </span>
         </div>
@@ -85,8 +85,8 @@ function NavItem({
       className={cn(
         "flex flex-col items-center rounded-xl py-2 transition-colors",
         active
-          ? "bg-orange-500/10 text-orange-500"
-          : "text-slate-500 hover:bg-orange-500/5",
+          ? "bg-button/10 text-button-strong"
+          : "text-slate-500 hover:bg-button/5",
       )}
     >
       <Icon className="h-5 w-5" aria-hidden />
