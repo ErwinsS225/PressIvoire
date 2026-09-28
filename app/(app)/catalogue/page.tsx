@@ -138,7 +138,7 @@ export default async function CataloguePage({
                                             {article.is_active ? (
                                                 <Badge variant="success">Actif</Badge>
                                             ) : (
-                                                <Badge variant="muted">Masqué</Badge>
+                                                <Badge variant="warning">Masqué</Badge>
                                             )}
                                         </TableCell>
                                     </TableRow>

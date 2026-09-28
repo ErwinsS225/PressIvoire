@@ -269,19 +269,50 @@ export interface OrderWithClient {
  * Inconnu par defaut plutot qu'une erreur : une valeur de statut ajoutee en
  * base apres deploiement ne doit pas faire tomber la colonne entiere.
  */
+/**
+ * Code couleur des statuts de commande.
+ *
+ * Trois couleurs, trois significations — le même code que partout ailleurs
+ * dans l'application :
+ *
+ *   success  VERT     la commande progresse normalement
+ *   info     BLEU     la commande bouge, mais n'est pas encore aboutie
+ *   warning  JAUNE    à surveiller (en retard, en attente de paiement)
+ *   danger   ROUGE    terminal et en échec — annulée, litige
+ *   muted    GRIS     terminé sans suite (livrée) ou sans importance
+ *
+ * `variant` reprend EXACTEMENT les valeurs de `components/ui/badge.tsx`.
+ * Une valeur inventée ici (comme `secondary`, qui n'existe pas) produit un
+ * badge sans couleur : le défaut de shadcn, silencieusement.
+ */
 export const statusMapping: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+    string,
+    {
+        label: string;
+        variant:
+            | "success"
+            | "danger"
+            | "warning"
+            | "info"
+            | "muted"
+            | "outline"
+            | "secondary"
+            | "default";
+    }
 > = {
-  pending: { label: "Reçue", variant: "secondary" },
-  pickup_scheduled: { label: "Collecte planifiée", variant: "secondary" },
-  picked_up: { label: "Collectée", variant: "secondary" },
-  in_processing: { label: "En traitement", variant: "default" },
-  ready: { label: "Prête", variant: "default" },
-  out_for_delivery: { label: "En livraison", variant: "outline" },
-  delivered: { label: "Livrée", variant: "outline" },
-  cancelled: { label: "Annulée", variant: "destructive" },
-  disputed: { label: "Litige", variant: "destructive" },
+    /* Reçue : le parcours n'a pas encore commencé. */
+    pending: { label: "Reçue", variant: "muted" },
+    pickup_scheduled: { label: "Collecte planifiée", variant: "info" },
+    picked_up: { label: "Collectée", variant: "info" },
+    in_processing: { label: "En traitement", variant: "info" },
+    /* Prête : le client peut venir — c'est l'étape où tout va bien. */
+    ready: { label: "Prête", variant: "success" },
+    out_for_delivery: { label: "En livraison", variant: "info" },
+    /* Livrée : terminée, sans enjeu. */
+    delivered: { label: "Livrée", variant: "success" },
+    /* Les deux seuls états d'échec. */
+    cancelled: { label: "Annulée", variant: "danger" },
+    disputed: { label: "Litige", variant: "danger" },
 };
 
 /** Etat lisible d'une commande de livraison (table `deliveries`). */

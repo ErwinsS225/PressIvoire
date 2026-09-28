@@ -114,6 +114,9 @@
     --table-head: 220 33% 98%;
     --table-stripe: 220 33% 98%;
     --divider: 214 32% 91%; /* #e2e8f0 */
+    /* Survol de ligne : un cran plus foncé que le fond, donc franc sans
+       concurrencer les badges de statut. */
+    --table-row-hover: 214 32% 95%; /* #eef2f7 */
 
     /* Trois niveaux de texte, et pas plus : c'est toute la hierarchie. */
     --foreground: 222 47% 11%; /* #0f172a — titres, chiffres */
@@ -203,6 +206,9 @@
     --surface-border: 217 33% 27%; /* #334155 */
     --table-head: 222 45% 12%; /* #0f172a */
     --table-stripe: 222 45% 12%;
+    /* Survol plus CLAIR que la ligne, et non plus sombre : en thème sombre,
+       un fond plus noir ferait disparaître la ligne au lieu de la détacher. */
+    --table-row-hover: 217 33% 22%; /* #1e293b */
     --divider: 217 33% 27%; /* #334155 */
 
     /* Les trois niveaux de texte s'inversent : le texte clair sur fond

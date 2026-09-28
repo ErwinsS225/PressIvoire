@@ -154,7 +154,7 @@ export default async function TeamPage() {
                                             {member.is_active ? (
                                                 <Badge variant="success">Actif</Badge>
                                             ) : (
-                                                <Badge variant="muted">Désactivé</Badge>
+                                                <Badge variant="danger">Désactivé</Badge>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right text-muted-foreground">

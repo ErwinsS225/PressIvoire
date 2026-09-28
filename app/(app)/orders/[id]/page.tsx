@@ -82,13 +82,19 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                 </p>
               ) : null}
               <div className="mt-3">
+                {/*
+                 * Paiement : vert si réglée, jaune si en cours, ROUGE si
+                 * impayée. Un impayé était en gris — ce qui le faisait passer
+                 * pour une simple absence d'information, alors que c'est un
+                 * encours dont la caisse a besoin.
+                 */}
                 <Badge
                   variant={
                     order.payment_status === "paid"
                       ? "success"
                       : order.payment_status === "partial"
                         ? "warning"
-                        : "muted"
+                        : "danger"
                   }
                 >
                   {order.payment_status === "paid"

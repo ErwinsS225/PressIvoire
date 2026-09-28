@@ -71,10 +71,19 @@ const TableRow = React.forwardRef<
     <tr
         ref={ref}
         className={cn(
-            // `hover:bg-muted/70` et non `/50` : sur un fond de verre, 50 %
-            // d'opacite donnait un survol a peine perceptible — on ne savait
-            // plus sur quelle ligne se trouvait le curseur.
-            "border-b border-slate-100/80 transition-colors hover:bg-brand-700/[0.07] data-[state=selected]:bg-brand-700/10",
+            /*
+             * Survol de ligne : gris ASSOMBRI, pas teinte d'accent.
+             *
+             * On indiquait `#2563EB` à 7 % — assez discret pour être
+             * quasiment invisible, donc inutile : on ne savait plus sur
+             * quelle ligne se trouvait le curseur. Un gris plus foncé que la
+             * ligne est franc, sans concurrencer les badges de statut.
+             *
+             * Les couleurs viennent de VARIABLES CSS : une classe
+             * `dark:` écrite en dur dans un composant peut être purgée au
+             * build sans la moindre erreur (cf. le piège des `bg-[#2563EB]`).
+             */
+            "border-b transition-colors duration-150 hover:bg-[hsl(var(--table-row-hover))] data-[state=selected]:bg-[hsl(var(--table-row-hover))] border-[hsl(var(--divider))]",
             className
         )}
         {...props}
