@@ -76,7 +76,7 @@ export default async function NotificationsPage() {
   const { pressing } = await getContext();
 
   if (!pressing) {
-    redirect("/settings");
+    redirect("/onboarding/pressing");
   }
 
   const [counts, notifications] = await Promise.all([

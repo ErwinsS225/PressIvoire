@@ -21,7 +21,7 @@ export default async function NewArticlePage() {
   const { pressing, profile } = await getContext();
 
   if (!pressing) {
-    redirect("/settings");
+    redirect("/onboarding/pressing");
   }
 
   if (!isStaffRole(profile?.role)) {

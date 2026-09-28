@@ -44,7 +44,7 @@ export default async function CataloguePage({
     const { pressing } = await getContext();
 
     if (!pressing) {
-        redirect("/settings");
+        redirect("/onboarding/pressing");
     }
 
     const [articles, allArticles] = await Promise.all([

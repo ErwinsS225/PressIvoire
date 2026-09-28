@@ -41,7 +41,7 @@ export default async function DeliveriesPage() {
   const { pressing } = await getContext();
 
   if (!pressing) {
-    redirect("/settings");
+    redirect("/onboarding/pressing");
   }
 
   const board = await getDeliveryBoard(pressing.id);

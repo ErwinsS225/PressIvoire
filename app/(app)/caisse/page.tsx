@@ -73,7 +73,7 @@ export default async function CashRegisterPage() {
     const { pressing } = await getContext();
 
     if (!pressing) {
-        redirect("/settings");
+        redirect("/onboarding/pressing");
     }
 
     const register = await getCashRegister(pressing.id);

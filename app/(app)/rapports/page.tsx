@@ -45,7 +45,7 @@ export default async function ReportsPage() {
     const { pressing } = await getContext();
 
     if (!pressing) {
-        redirect("/settings");
+        redirect("/onboarding/pressing");
     }
 
     const report = await getReports(pressing.id);
