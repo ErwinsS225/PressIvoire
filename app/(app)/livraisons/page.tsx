@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Header } from "@/components/layout/header";
+import { UpgradeRequired } from "@/components/subscription/upgrade-required";
 import { Badge } from "@/components/ui/badge";
 import {
     Card,
@@ -19,6 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { getEffectivePlan } from "@/lib/subscriptions";
 import { getContext, getDeliveryBoard } from "@/lib/supabase/queries";
 import {
     DELIVERY_STATUS_LABELS,
@@ -42,6 +44,26 @@ export default async function DeliveriesPage() {
 
   if (!pressing) {
     redirect("/onboarding/pressing");
+  }
+
+  /*
+   * Les tournées sont une capacité Pro.
+   *
+   * Le contrôle est ici pour l'affichage ET dans les Server Actions qui
+   * écrivent sur les livraisons : cette page n'est que la partie lisible de
+   * la décision, pas la décision elle-même.
+   */
+  const context = await getEffectivePlan();
+  if (context && !context.limits.deliveries) {
+    return (
+      <div className="flex flex-col gap-8">
+        <Header title="Tournées" subtitle="Suivi des livraisons à domicile" />
+        <UpgradeRequired
+          feature="les tournées de livraison"
+          currentPlanId={context.plan.id}
+        />
+      </div>
+    );
   }
 
   const board = await getDeliveryBoard(pressing.id);

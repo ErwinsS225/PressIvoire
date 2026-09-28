@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/supabase/queries";
+import { canCreateOrder, getEffectivePlan } from "@/lib/subscriptions";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 
 /**
@@ -85,6 +86,34 @@ export async function recordPayment(
   }
 
   /*
+   * Encaissement partiel : reserve au plan Pro.
+   *
+   * Le controle est fait AVANT l'appel a `record_payment`, qui plafonne deja
+   * le montant au solde restant cote base. On lit donc le solde ici pour
+   * distinguer un encaissement total (autorise en free) d'un encaissement
+   * partiel (reserve).
+   */
+  const { data: order } = await db
+    .from("orders")
+    .select("total, amount_paid")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (order) {
+    const remaining = Math.max(order.total - (order.amount_paid ?? 0), 0);
+    const context = await getEffectivePlan();
+    if (
+      context &&
+      !context.limits.partialPayments &&
+      amount < remaining
+    ) {
+      throw new Error(
+        `Les encaissements partiels nécessitent le plan Pro (plan actuel : ${context.plan.name}). Enregistrez la totalité du solde.`,
+      );
+    }
+  }
+
+  /*
    * On delegue a la fonction Postgres `record_payment` (migration 004) plutot
    * que d'ecrire depuis ici. Deux raisons :
    *
@@ -138,6 +167,26 @@ export async function createOrder(input: NewOrderInput): Promise<{ orderId: stri
   const { db, pressing } = await getContext();
   if (!pressing) throw new Error("Aucun pressing courant.");
   if (input.items.length === 0) throw new Error("La commande est vide.");
+
+  /*
+   * Quota du plan gratuit (50 commandes / mois).
+   *
+   * Controle ici, dans la Server Action, et pas dans le formulaire : une
+   * Server Action est un point d'entree HTTP public, appelable sans passer
+   * par l'interface. Masquer le bouton « Nouvelle commande » n'empêcherait
+   * rien.
+   *
+   * Le compteur est lu au moment de la creation, pas avant : deux caissiers
+   * validant au meme instant peuvent tous deux passer la garde. C'est une
+   * limite commerciale, pas une garantie d'exclusion — une migration SQL
+   * serait necessaire pour un compte strict, non justifie ici.
+   */
+  const quota = await canCreateOrder();
+  if (!quota.allowed && quota.limit !== null) {
+    throw new Error(
+      `Quota du plan ${quota.planName} atteint : ${quota.used} commandes sur ${quota.limit} ce mois-ci. Passez au plan Pro pour continuer à enregistrer des commandes.`,
+    );
+  }
 
   const subtotal = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const deliveryFee = input.deliveryType === "home_delivery" ? (pressing.delivery_fee ?? 0) : 0;

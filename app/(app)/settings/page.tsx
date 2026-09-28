@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Check } from "lucide-react";
 
 import { Header } from "@/components/layout/header";
 import { Badge } from "@/components/ui/badge";
@@ -10,18 +11,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getContext } from "@/lib/supabase/queries";
+import {
+  getEffectivePlan,
+  getMonthlyOrderCountForPlan,
+} from "@/lib/subscriptions";
+import { PLANS } from "@/lib/plans";
 import { roleLabel } from "@/lib/constants";
 import { formatFCFA } from "@/lib/utils";
 
 export const metadata = { title: "Paramètres" };
-
-/** Libelles des plans, alignes sur le CHECK de `pressings`. */
-const PLAN_LABELS: Record<string, string> = {
-  free: "Gratuit",
-  pro: "Pro",
-  business: "Business",
-  enterprise: "Enterprise",
-};
 
 /** Ligne d'information : un libelle a gauche, la valeur a droite. */
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -48,7 +46,18 @@ export default async function SettingsPage() {
     redirect("/onboarding/pressing");
   }
 
-  const plan = PLAN_LABELS[pressing.subscription_plan] ?? pressing.subscription_plan;
+  const context = await getEffectivePlan();
+  const plan = context?.plan ?? PLANS.free;
+  const limits = context?.limits ?? PLANS.free.limits;
+  const isActive = context?.isActive ?? false;
+  const storedPlanId = context?.storedPlanId ?? "free";
+
+  const used = await getMonthlyOrderCountForPlan(pressing.id);
+  const usage = { used, limit: limits.ordersPerMonth };
+  // « Presque atteint » : on previent a 80 % du quota, pour que le gerant
+  // soituguese avant de se faire bloquer en plein enregistrement.
+  const nearQuota =
+    limits.ordersPerMonth !== null && usage.used >= limits.ordersPerMonth * 0.8;
 
   return (
     <div className="flex flex-col gap-8">
@@ -99,10 +108,66 @@ export default async function SettingsPage() {
               <div className="flex items-center justify-between rounded-lg bg-slate-900 p-5 text-white">
                 <div>
                   <p className="text-xs font-medium text-slate-400">Plan actuel</p>
-                  <p className="mt-1 text-2xl font-bold">{plan}</p>
+                  <p className="mt-1 text-2xl font-bold">{plan.name}</p>
                 </div>
-                <Badge variant="success">Actif</Badge>
+                <Badge variant={isActive ? "success" : "destructive"}>
+                  {isActive ? "Actif" : "Expiré"}
+                </Badge>
               </div>
+
+              {limits.ordersPerMonth !== null ? (
+                <div className="mt-4 grid gap-2">
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Commandes ce mois-ci
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {usage.used} / {limits.ordersPerMonth}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={
+                        nearQuota
+                          ? "h-full rounded-full bg-orange-500"
+                          : "h-full rounded-full bg-brand-700"
+                      }
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round((usage.used / limits.ordersPerMonth) * 100),
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  {nearQuota ? (
+                    <p className="text-xs text-orange-700">
+                      Quota presque atteint. Le plan Pro supprime cette limite.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Commandes illimitées.
+                </p>
+              )}
+
+              <ul className="mt-4 grid gap-1">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-sm">
+                    <Check className="h-4 w-4 text-green-600" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
+              {!isActive ? (
+                <p className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
+                  Votre abonnement a expiré. Les capacités du plan{" "}
+                  {PLANS[storedPlanId].name} sont suspendues — renouvelez pour
+                  les retrouver.
+                </p>
+              ) : null}
               <p className="mt-3 text-sm text-muted-foreground">
                 {pressing.subscription_expires_at
                   ? `Renouvellement le ${new Date(

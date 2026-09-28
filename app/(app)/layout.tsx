@@ -1,5 +1,6 @@
 import { BottomNav } from "@/components/layout/bottom-nav";
-import { Sidebar } from "@/components/layout/sidebar";
+import { Sidebar, type Capability } from "@/components/layout/sidebar";
+import { getEffectivePlan } from "@/lib/subscriptions";
 
 /**
  * Layout principal de l'application.
@@ -10,17 +11,28 @@ import { Sidebar } from "@/components/layout/sidebar";
  *
  * Le meme contenu sert les deux — l'application est concue en desktop, et le
  * responsive se fait par CSS (`md:`), pas par deux applications separees.
+ *
+ * Le plan d'abonnement est resolu ICI, cote serveur, puis passe a la
+ * sidebar sous forme de capacités. La barre reste ainsi un composant client
+ * simple : elle n'a ni session ni base a interroger.
  */
 export default async function AppLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const context = await getEffectivePlan();
+
+    const capabilities: Capability[] = [];
+    if (context?.limits.deliveries) capabilities.push("deliveries");
+    if (context?.limits.reports) capabilities.push("reports");
+    if (context?.limits.notifications) capabilities.push("notifications");
+
     return (
         <div className="flex min-h-dvh bg-slate-50">
             {/* Barre laterale : desktop uniquement */}
             <div className="hidden md:flex">
-                <Sidebar />
+                <Sidebar capabilities={capabilities} />
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">

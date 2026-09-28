@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 
 import { Header } from "@/components/layout/header";
 import { DailyRevenueChart } from "@/components/dashboard/daily-revenue-chart";
+import { UpgradeRequired } from "@/components/subscription/upgrade-required";
+import { getEffectivePlan } from "@/lib/subscriptions";
 import { Badge } from "@/components/ui/badge";
 import {
     Card,
@@ -46,6 +48,23 @@ export default async function ReportsPage() {
 
     if (!pressing) {
         redirect("/onboarding/pressing");
+    }
+
+    /* Les rapports d'activité sont une capacité Pro (cf. lib/plans.ts). */
+    const context = await getEffectivePlan();
+    if (context && !context.limits.reports) {
+        return (
+            <div className="flex flex-col gap-8">
+                <Header
+                    title="Rapports"
+                    subtitle={`${REPORT_WINDOW_DAYS} derniers jours · ${pressing.name}`}
+                />
+                <UpgradeRequired
+                    feature="les rapports et statistiques"
+                    currentPlanId={context.plan.id}
+                />
+            </div>
+        );
     }
 
     const report = await getReports(pressing.id);
