@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Screen, ScreenHeader } from "@/components/mobile/screen";
-import { ArticleForm } from "@/components/mobile/article-form";
+
+import { Header } from "@/components/layout/header";
+import { ArticleForm } from "@/components/catalogue/article-form";
+import { Button } from "@/components/ui/button";
 import { getArticle, getContext } from "@/lib/supabase/queries";
 import { isAdminRole } from "@/lib/constants";
 
@@ -25,13 +28,16 @@ export default async function EditArticlePage({ params }: { params: { id: string
   const canDelete = isAdminRole(profile?.role);
 
   return (
-    <Screen>
-      <ScreenHeader
+    <div className="flex flex-col gap-8">
+      <Header
         title={article.name}
         subtitle={`Ajouté le ${new Date(article.created_at).toLocaleDateString("fr-FR")}`}
-        backHref="/catalogue"
-      />
+      >
+        <Button asChild variant="outline">
+          <Link href="/catalogue">Retour au catalogue</Link>
+        </Button>
+      </Header>
       <ArticleForm article={article} canDelete={canDelete} />
-    </Screen>
+    </div>
   );
 }

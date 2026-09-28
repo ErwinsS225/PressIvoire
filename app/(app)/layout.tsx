@@ -1,4 +1,4 @@
-import { BottomNav } from "@/components/mobile/bottom-nav";
+import { BottomNav } from "@/components/layout/bottom-nav";
 import { Sidebar } from "@/components/layout/sidebar";
 
 /**
@@ -24,12 +24,15 @@ export default async function AppLayout({
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">
-                {/* Barre basse : mobile uniquement */}
+                <main className="flex-1 p-4 pb-24 md:p-8 md:pb-8">
+                    {children}
+                </main>
+
+                {/* Barre basse : mobile uniquement. Le `pb-24` ci-dessus
+                    reserve sa place pour qu'elle ne masque pas le contenu. */}
                 <div className="md:hidden">
                     <BottomNav />
                 </div>
-
-                <main className="flex-1 p-4 md:p-8">{children}</main>
             </div>
         </div>
     );
