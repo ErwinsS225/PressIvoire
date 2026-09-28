@@ -25,12 +25,10 @@ const iconMap = {
 };
 
 /**
- * Tuile d'indicateur, en verre.
+ * Tuile d'indicateur, avec profondeur par ombre portée.
  *
- * Le composant porte `"use client"` uniquement pour la classe
- * `backdrop-filter`, qui doit etre composee par le navigateur cote client :
- * une classe de verre declaree sur un Server Component peut etre ignoree au
- * premier rendu. Le composant ne contient aucun etat — c'est gratuit.
+ * Le composant est un Client Component sans aucun état : il ne l'est que
+ * pour que la classe `elev-1` soit composée au bon moment. Aucun coût réel.
  */
 export function StatCard({
     title,
@@ -45,7 +43,7 @@ export function StatCard({
 
     return (
         <Card
-            className="glass-card glass-card--accent stagger-item overflow-hidden border-0"
+            className="elev-1 elev-1--accent stagger-item overflow-hidden border-0"
             style={{ "--stagger-index": index } as React.CSSProperties}
         >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

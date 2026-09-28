@@ -64,11 +64,16 @@ export function Sidebar({
 
     const hasCapability = (c: Capability) => capabilities.includes(c);
     return (
-        // `relative` et non `static` : le fond aurora est en `fixed z-index:-1`.
-        // Sans positionnement propre, la barre laiteuse pourrait se retrouver
-        // derriere lui a certains niveaux de navigateur.
-        <aside className="relative flex h-full w-64 flex-col border-r border-white/50 bg-white/60 backdrop-blur-xl">
-            <div className="flex h-16 items-center border-b border-white/50 px-6 text-xl font-bold">
+        /*
+         * `elev-3` : la barre latérale est une STRUCTURE, pas un contenu —
+         * elle reçoit donc un niveau d'élévation supérieur à celui des cartes.
+         *
+         * Fond plein et opaque : translucide, elle laisserait passer le
+         * dégradé de fond et les ombres des cartes voisines, ce qui
+         * aplatirait la profondeur — exactement l'inverse de l'effet voulu.
+         */
+        <aside className="elev-3 flex h-full w-64 flex-col">
+            <div className="flex h-16 items-center border-b border-slate-200/70 px-6 text-xl font-bold">
                 Press<span className="text-brand-700">Plus</span>
             </div>
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -108,7 +113,7 @@ export function Sidebar({
                     );
                 })}
             </nav>
-            <div className="border-t border-white/50 p-3">
+            <div className="border-t border-slate-200/70 p-3">
                 <form action="/api/signout" method="post">
                     <button
                         type="submit"

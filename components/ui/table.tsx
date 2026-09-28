@@ -5,21 +5,21 @@ import { cn } from "@/lib/utils"
 /*
  * Conteneur de tableau.
  *
- * Le voile blanc (`glass-table-wrap`) est pose ICI, sur le `div` englobant,
- * et non sur le `<table>` : une table occupe toute la largeur de son
- * conteneur, donc le voile couvre la totalite de la zone — en-tete et pied
- * compris. Le `overflow: hidden` de la classe rogne les coins arrondis et
- * evite qu'une ligne deborde sous le verre.
+ * L'élévation (`elev-table`) est posée ICI, sur le `div` englobant, et non
+ * sur le `<table>` : une table occupe toute la largeur de son conteneur,
+ * donc l'ombre et la bordure couvrent la totalité de la zone — en-tête et
+ * pied compris. Le `overflow: hidden` de la classe rogne les coins arrondis,
+ * sans quoi les lignes déborderaient aux angles.
  *
- * Sans ce voile, un tableau pose sur le fond anime laissait passer les
- * taches entre les lignes : la lecture d'une colonne de montants devenait
- * difficile, meme si chaque carte individuelle etait assez opaque.
+ * Un tableau est le cas le plus exigeant en profondeur : beaucoup de lignes,
+ * des colonnes de chiffres à suivre verticalement. D'où une ombre propre au
+ * tableau et un en-tête posé plus haut, dont l'ombre tombe sur les lignes.
  */
 const Table = React.forwardRef<
     HTMLTableElement,
     React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-    <div className="glass-table-wrap relative w-full overflow-auto">
+    <div className="elev-table relative w-full overflow-auto">
         <table
             ref={ref}
             className={cn("w-full caption-bottom text-sm", className)}
