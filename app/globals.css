@@ -506,3 +506,226 @@
     transform: translate3d(0, -4px, 40px) scale(1.02);
   }
 }
+
+/* ==========================================================================
+   VERRE — Tableau de bord
+   --------------------------------------------------------------------------
+   Les classes `glass-*` ci-dessus venaient de l'interface mobile, sur fond
+   opaque. Sur desktop il faut un fond ANIMÉ derrière le verre, sinon le flou
+   d'arrière-plan ne dégrade rien et l'effet se voit à peine.
+
+   Trois couches empilées :
+     .aurora-bg  le fond animé (dégradés qui dérivent lentement)
+     .glass-card les panneaux qui le réfractent
+     .stagger-*  l'entrée en cascade des éléments
+   ========================================================================== */
+
+/* --- Fond animé ---------------------------------------------------------- */
+
+/*
+ * `fixed` et non `absolute` : le fond doit rester immobile pendant le
+ * défilement, sinon les taches parquetent avec le contenu et l'effet de
+ * profondeur — l'effet de verre — s'annule.
+ *
+  * `z-index: 0` et non `-1` : le `<body>` porte `bg-background` (blanc opaque)
+ * et forme la racine de la pile. Un fond a `z-index: -1` passerait DERRIERE
+ * ce blanc et resterait totalement invisible. On le garde donc au niveau 0,
+ * et le contenu est remonte au-dessus par le layout (`relative z-10`).
+ */
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(160deg, #f0f7f6 0%, #e6f0ef 45%, #f4f0ea 100%);
+  pointer-events: none;
+}
+
+.aurora-bg__blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.aurora-bg__blob--1 {
+  top: -12%;
+  left: -8%;
+  width: 46vw;
+  height: 46vw;
+  background: radial-gradient(circle, #5eead4 0%, transparent 70%);
+  animation: aurora-1 24s ease-in-out infinite;
+}
+
+.aurora-bg__blob--2 {
+  top: 18%;
+  right: -10%;
+  width: 42vw;
+  height: 42vw;
+  background: radial-gradient(circle, #fdba74 0%, transparent 70%);
+  animation: aurora-2 31s ease-in-out infinite;
+}
+
+.aurora-bg__blob--3 {
+  bottom: -14%;
+  left: 24%;
+  width: 38vw;
+  height: 38vw;
+  background: radial-gradient(circle, #a5b4fc 0%, transparent 70%);
+  animation: aurora-3 27s ease-in-out infinite;
+}
+
+/* Un grain très fin casse la propreté des dégradés : sans lui, les grands
+   aplats de couleur montrent leurs bandes sur les écrans 8 bits. */
+.aurora-bg__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes aurora-1 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(8%, 10%, 0) scale(1.18);
+  }
+}
+
+@keyframes aurora-2 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(-10%, 6%, 0) scale(0.9);
+  }
+}
+
+@keyframes aurora-3 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.95);
+  }
+  50% {
+    transform: translate3d(6%, -9%, 0) scale(1.15);
+  }
+}
+
+/* --- Panneaux de verre ---------------------------------------------------- */
+
+/*
+ * Panneau de verre du tableau de bord.
+ *
+ * `blur` + `saturate` : le second est ce qui fait "verre" plutôt que
+ * "flou". Sans la saturation, un fond coloré vu à travers devient terne —
+ * exactement l'inverse de l'effet recherché.
+ */
+.glass-card {
+  position: relative;
+  background: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 0.72) 0%,
+    rgb(255 255 255 / 0.55) 100%
+  );
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgb(255 255 255 / 0.65);
+  box-shadow:
+    0 12px 32px -12px rgb(15 118 110 / 0.16),
+    0 2px 8px -2px rgb(15 23 42 / 0.06),
+    /* Liseré supérieur : c'est lui qui donne la lecture "tranche de verre" */
+    inset 0 1px 0 0 rgb(255 255 255 / 0.9);
+  transition:
+    transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Le survol n'existe pas sur tactile : la media query evite de laisser un
+   état actif collé après un tap. */
+@media (hover: hover) {
+  .glass-card:hover {
+    transform: translate3d(0, -3px, 0);
+    box-shadow:
+      0 22px 46px -14px rgb(15 118 110 / 0.22),
+      0 4px 12px -3px rgb(15 23 42 / 0.08),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.95);
+  }
+}
+
+/* Barre d'accent colorée en haut d'une carte (KPI, titres de section). */
+.glass-card--accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  opacity: 0.9;
+}
+
+/* --- Cascade d'entrée ----------------------------------------------------- */
+
+/*
+ * Les éléments arrivent en cascade via un délai calculé en CSS
+ * (`animation-delay: calc(var(--stagger-index) * 60ms)`). Une cascade guide
+ * l'œil dans l'ordre de lecture : c'est de l'ergonomie, pas de la décoration.
+ */
+.stagger-item {
+  animation: rise-in 0.62s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--stagger-index, 0) * 60ms);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Contenu qui pulse doucement, pour les valeurs qui changent. */
+.breathe {
+  animation: breathe 3.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -3px, 0);
+  }
+}
+
+/* --- Préférence système --------------------------------------------------- */
+
+/*
+ * `prefers-reduced-motion` n'est pas un détail : c'est un réglage
+ * d'accessibilité, et il existe précisément parce que les grands dégradés
+ * animés peuvent provoquer des nausées. On coupe les animations SANS
+ * dégrader le rendu : le contenu reste opaque et lisible.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-bg__blob,
+  .stagger-item,
+  .breathe {
+    animation: none !important;
+  }
+  .glass-card,
+  .glass-card:hover {
+    transition: none !important;
+    transform: none !important;
+  }
+  .stagger-item {
+    opacity: 1;
+    transform: none;
+  }
+}
+

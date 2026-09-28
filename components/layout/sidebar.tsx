@@ -64,8 +64,11 @@ export function Sidebar({
 
     const hasCapability = (c: Capability) => capabilities.includes(c);
     return (
-        <aside className="flex h-full w-64 flex-col border-r bg-white">
-            <div className="flex h-16 items-center border-b px-6 text-xl font-bold">
+        // `relative` et non `static` : le fond aurora est en `fixed z-index:-1`.
+        // Sans positionnement propre, la barre laiteuse pourrait se retrouver
+        // derriere lui a certains niveaux de navigateur.
+        <aside className="relative flex h-full w-64 flex-col border-r border-white/50 bg-white/60 backdrop-blur-xl">
+            <div className="flex h-16 items-center border-b border-white/50 px-6 text-xl font-bold">
                 Press<span className="text-brand-700">Plus</span>
             </div>
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -91,8 +94,8 @@ export function Sidebar({
                                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                                 locked && "opacity-50",
                                 isActive && !locked
-                                    ? "bg-brand-50 font-semibold text-brand-700"
-                                    : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                                    ? "bg-brand-700/10 font-semibold text-brand-700"
+                                    : "text-muted-foreground hover:bg-white/60 hover:text-foreground",
                             )}
                             title={locked ? "Réservé au plan Pro" : undefined}
                         >
@@ -105,7 +108,7 @@ export function Sidebar({
                     );
                 })}
             </nav>
-            <div className="border-t p-3">
+            <div className="border-t border-white/50 p-3">
                 <form action="/api/signout" method="post">
                     <button
                         type="submit"

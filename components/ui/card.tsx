@@ -1,6 +1,18 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Carte de base.
+ *
+ * ⚠ Le fond est TRANSPARENT par defaut (`bg-transparent`). Le `Card` posait
+ * `bg-card` — un aplat blanc OPAQUE qui masque completement le fond anime et
+ * rendrait l'effet de verre (`.glass-card`) invisible : le flou d'arriere-plan
+ * n'aurait plus rien a refracter.
+ *
+ * Sur un ecran a fond uni, la carte reste lisible grace a sa bordure et a son
+ * ombre portee. Sur un ecran a fond anime, `.glass-card` prend le relais avec
+ * son propre fond translucide.
+ */
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -8,7 +20,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow-sm",
+      "rounded-xl border bg-transparent text-card-foreground shadow-sm",
       className,
     )}
     {...props}

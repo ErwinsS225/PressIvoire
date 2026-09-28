@@ -1,3 +1,4 @@
+import { AuroraBackground } from "@/components/layout/aurora-background";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Sidebar, type Capability } from "@/components/layout/sidebar";
 import { getEffectivePlan } from "@/lib/subscriptions";
@@ -29,7 +30,20 @@ export default async function AppLayout({
     if (context?.limits.notifications) capabilities.push("notifications");
 
     return (
-        <div className="flex min-h-dvh bg-slate-50">
+        // `relative z-10` : le fond aurora est en `z-index: 0`. Sans ce
+        // relèvement, le contenu du tableau de bord se retrouverait dessous.
+        <div className="relative z-10 flex min-h-dvh">
+            {/*
+              Fond anime, monte ICI et pas dans chaque page : il ne serait
+              sinon pas partage entre les ecrans, et rechargerait ses
+              animations a chaque navigation.
+
+              Le conteneur est transparent (pas de `bg-slate-50`) : un fond
+              opaque masquerait completement l'aurora et l'effet de verre
+              n'aurait plus rien a refracter.
+            */}
+            <AuroraBackground />
+
             {/* Barre laterale : desktop uniquement */}
             <div className="hidden md:flex">
                 <Sidebar capabilities={capabilities} />

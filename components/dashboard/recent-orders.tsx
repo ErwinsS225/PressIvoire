@@ -54,7 +54,10 @@ const statusMapping: Record<
 
 export function RecentOrders({ orders }: RecentOrdersProps) {
     return (
-        <Card className="col-span-3">
+        <Card
+            className="glass-card stagger-item border-0"
+            style={{ "--stagger-index": 5 } as React.CSSProperties}
+        >
             <CardHeader>
                 <CardTitle>Commandes Récentes</CardTitle>
                 <CardDescription>

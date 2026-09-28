@@ -41,6 +41,7 @@ export default async function DashboardPage() {
       <main className="grid gap-6">
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
+            index={0}
             title="Revenus (30j)"
             value={formatFCFA(data.revenue.total)}
             change={data.revenue.change}
@@ -48,6 +49,7 @@ export default async function DashboardPage() {
             description={`${data.orders.count} commandes ce mois-ci`}
           />
           <StatCard
+            index={1}
             title="Commandes en attente"
             value={data.pendingOrders}
             change={0}
@@ -55,6 +57,7 @@ export default async function DashboardPage() {
             description="Commandes non encore traitées"
           />
           <StatCard
+            index={2}
             title="Commandes prêtes"
             value={data.readyOrders}
             change={0}
@@ -62,6 +65,7 @@ export default async function DashboardPage() {
             description="Prêtes à être récupérées ou livrées"
           />
           <StatCard
+            index={3}
             title="Nouveaux clients (30j)"
             value={data.newClients}
             change={0}
