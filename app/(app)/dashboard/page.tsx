@@ -47,6 +47,9 @@ export default async function DashboardPage() {
             change={data.revenue.change}
             iconType="revenue"
             description={`${data.orders.count} commandes ce mois-ci`}
+            variant="glass"
+            linkHref="/rapports"
+            linkLabel="Voir les rapports"
           />
           <StatCard
             index={1}
@@ -55,6 +58,9 @@ export default async function DashboardPage() {
             change={0}
             iconType="pending"
             description="Commandes non encore traitées"
+            variant="sharp"
+            linkHref="/orders"
+            linkLabel="Traiter les commandes"
           />
           <StatCard
             index={2}
@@ -63,6 +69,9 @@ export default async function DashboardPage() {
             change={0}
             iconType="ready"
             description="Prêtes à être récupérées ou livrées"
+            variant="soft"
+            linkHref="/livraisons"
+            linkLabel="Voir les livraisons"
           />
           <StatCard
             index={3}
@@ -71,6 +80,9 @@ export default async function DashboardPage() {
             change={0}
             iconType="clients"
             description="Clients inscrits ce mois-ci"
+            variant="glass"
+            linkHref="/clients"
+            linkLabel="Voir les clients"
           />
         </section>
 
