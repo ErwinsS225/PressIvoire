@@ -1,406 +1,305 @@
-# PressingPro ⚡🧺
+# PressingPro
 
-SaaS multi-tenant de **gestion de pressing / pressing-à-sec**, pensé pour le marché
-ivoirien (Abidjan). Commandes, collecte & livraison, paiement mobile money
-(Wave, Orange, MTN, Moov), fidélité, SMS WhatsApp et pilotage du chiffre d'affaires.
+SaaS multi-tenant de gestion de pressing, conçu pour le marché ivoirien
+(Abidjan). Commandes, collecte et livraison, catalogue de tarifs,
+encaissement multi-espèces, tableau de bord et rapports.
 
-> **État actuel : Phase 1 — Étape 1** _(scaffold + schéma de base de données +
-> seed ivoirien + clients Supabase typés + thème)_.
-> La suite (Auth, onboarding, dashboard, app client…) est découpée selon le
-> contrat `flo.md`.
-
----
-
-## 1. Prérequis
-
-| Outil                      | Version                    | Vérification             |
-| -------------------------- | -------------------------- | ------------------------ |
-| Node.js                    | ≥ 18.18 (20/22 recommandé) | `node -v`                |
-| npm                        | ≥ 10                       | `npm -v`                 |
-| Supabase CLI _(optionnel)_ | ≥ 1.x                      | `npx supabase --version` |
+> **Statut** : application opérationnelle, 100 % desktop, installable sur
+> téléphone (PWA). 14 écrans métier, base multi-tenant avec RLS sur
+> 11 tables.
 
 ---
 
-## 2. Installation
+## Sommaire
+
+- [Ce que fait l'application](#ce-que-fait-lapplication)
+- [Stack technique](#stack-technique)
+- [Installation](#installation)
+- [Commandes](#commandes)
+- [Structure](#structure)
+- [Sécurité](#sécurité)
+- [Base de données](#base-de-données)
+- [Tests](#tests)
+- [Ce qui est annoncé mais pas encore branché](#ce-qui-est-annoncé-mais-pas-encore-branché)
+- [Feuille de route](#feuille-de-route)
+
+---
+
+## Ce que fait l'application
+
+### Pour le gérant
+
+| Écran | Route | Ce qu'on y fait |
+|---|---|---|
+| Tableau de bord | `/dashboard` | CA du mois, commandes en cours, graphique 12 mois |
+| Commandes | `/orders` | Liste filtrable par statut, recherche |
+| Nouvelle commande | `/orders/new` | Parcours en 3 étapes (client, articles, remise) |
+| Détail commande | `/orders/[id]` | Lignes, encaissement, avancement du workflow |
+| Clients | `/clients` | Annuaire, création, totaux calculés |
+| Fiche client | `/clients/[id]` | Coordonnées, historique, forfaits pré-payés |
+| Catalogue | `/catalogue` | Tarifs, types de lavage, activation par article |
+| Création article | `/catalogue/nouveau` | Formulaire validé côté client **et** serveur |
+| Livraisons | `/livraisons` | Tournées, retards > 24 h, missions par livreur |
+| Caisse | `/caisse` | Encaissements du jour, ventilation, impayés |
+| Rapports | `/rapports` | CA 7 jours, panier moyen, top clients et articles |
+| Notifications | `/notifications` | Journal d'envoi SMS / WhatsApp |
+| Paramètres | `/settings` | Identité du pressing, abonnement, session |
+
+### Parcours
+
+1. **Inscription** → choix du rôle (gérant ou client)
+2. **Onboarding gérant** (3 étapes) → identité, services et tarifs, abonnement.
+   Les trois étapes passent par **une seule transaction Postgres**
+   (`complete_onboarding()`), pas trois requêtes.
+3. **Utilisation** → le reste.
+
+### Sur téléphone
+
+L'application est une **PWA** : elle s'installe depuis le navigateur
+(menu de partage → « Sur l'écran d'accueil ») et s'ouvre en plein écran, sans barre d'URL.
+
+C'est le layout qui fait le reste : sur grand écran une barre latérale,
+sur téléphone une barre de navigation basse. **Même base de code, aucun
+écran dupliqué** — le responsive se fait en CSS (`md:`).
+
+Le manifeste est dans `public/manifest.webmanifest`, les icônes sont
+générées par `npm run icons`.
+
+---
+
+## Stack technique
+
+| Couche | Choix | Pourquoi |
+|---|---|---|
+| Framework | Next.js 14 (App Router) | RSC + Server Actions : le HTML arrive déjà rempli, zéro aller-retour client au chargement |
+| Langage | TypeScript strict | Aucune erreur sur `npm run type-check` |
+| Base | Supabase (Postgres + Auth + Storage) | RLS native : l'isolation multi-tenant est dans la base, pas dans l'application |
+| Session | `@supabase/ssr` (cookies httpOnly) | Le JS de la page ne peut pas lire la session |
+| Validation | Zod | Même schéma côté client (message sous le champ) et côté serveur (garantie) |
+| Style | Tailwind + shadcn/ui | `components/ui/` : Button, Card, Table, Badge, Dialog… |
+| Graphique | Recharts | Histogramme du CA, en composant client isolé |
+| Tableau | TanStack Table v8 | Tri, filtres, pagination sur la liste des commandes |
+| État | Zustand | Onboarding multi-étapes, persisté en `sessionStorage` |
+| Tests | Vitest | 97 tests sur la logique métier pure
+
+---
+
+## Installation
+
+### Prérequis
+
+| Outil | Version |
+|---|---|
+| Node.js | ≥ 18.18 (20 ou 22 recommandé) |
+| npm | ≥ 10 |
+| Supabase CLI | ≥ 1.x (optionnel, pour la base locale) |
+
+### Mise en place
 
 ```bash
-cd /Users/melvyn/projetSass/PressPlus
 npm install
-cp .env.example .env.local       # puis renseigner les vraies valeurs
+cp .env.example .env.local      # puis renseigner les vraies valeurs
+npm run db:migrate             # crée le schéma + seed
+npm run dev                    # http://localhost:3000
 ```
 
-Puis ouvrir `.env.local` :
+Les variables minimales sont `NEXT_PUBLIC_SUPABASE_URL` et
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`. Sans elles, l'application démarre mais
+l'écran de vérification Signale le problème explicitement.
+
+---
+
+## Commandes
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co   # URL de votre projet
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...             # serveur seulement
+# Développement
+npm run dev                  # serveur de développement
+
+# Vérification
+npm run type-check           # TypeScript, sans émission
+npm run lint                 # ESLint
+npm test                     # 97 tests unitaires
+npm run test:coverage        # tests + rapport de couverture
+npm run build                # build de production
+
+# Base de données
+npm run db:migrate           # applique migrations + seed
+npm run db:migrate:dry       # vérifie l'accès sans rien modifier
+npm run db:verify            # 22 contrôles post-migration
+npm run db:seed:demo         # clients et commandes de démonstration
+npm run db:types             # régénère lib/supabase/types.ts
+
+# Assets
+npm run icons                # régénère les icônes PWA
 ```
 
 ---
 
-## 3. Base de données
-
-### Option A — Projet Supabase hébergé (recommandée)
-
-1. Créer un projet sur [supabase.com](https://supabase.com).
-2. **SQL Editor** → coller `supabase/migrations/001_init.sql` → _Run_.
-3. **SQL Editor** → coller `supabase/seed.sql` → _Run_.
-4. Copier URL + clé anon dans `.env.local`.
-
-### Option B — Supabase CLI (stack locale Docker)
-
-```bash
-npx supabase db reset      # applique les migrations + seed.sql
-npx supabase start         # console : http://127.0.0.1:54321
-```
-
-### Option C — Script d'application via l'API Management (recommandée, automatisable)
-
-```bash
-npm run db:migrate:dry   # vérifie l'accès sans rien modifier
-npm run db:migrate       # applique 001_init.sql + seed.sql
-```
-
-Le script [`scripts/db-apply.mjs`](scripts/db-apply.mjs) poste le SQL sur
-`POST /v1/projects/{ref}/database/query` — le même canal que le SQL Editor, mais
-**sans avoir besoin du mot de passe de la base**. Il recharge aussi le cache
-PostgREST (`notify pgrst`) et vérifie le nombre de tables créées.
-
-Il exige un **Personal Access Token** du compte qui _possède_ le projet :
-
-1. Ouvrir le projet sur [supabase.com/dashboard](https://supabase.com/dashboard)
-   → vérifier **dans quel compte on est connecté** (menu avatar, en haut à droite).
-2. _Account Preferences_ → _Personal Access Tokens_ → _Generate new token_.
-3. L'exposer **sans l'écrire dans un fichier versionné** :
-
-```bash
-export SUPABASE_ACCESS_TOKEN=sbp_...
-npm run db:migrate
-```
-
-### ✅ État du projet `yeskczloikwljpdjaowh` (PressIvoire) — migré
-
-Migrations **appliquées** le 27/09/2026 via `npm run db:migrate` (API Management,
-avec le Personal Access Token du compte propriétaire — `supabase link` est aussi
-actif, `supabase/.temp/linked-project.json`).
-
-```bash
-npm run db:verify
-```
-
-| Contrôle        | Résultat                                                                 |
-| --------------- | ------------------------------------------------------------------------ |
-| Tables          | 11 / 11, **RLS activé sur chacune**                                      |
-| Policies RLS    | 33                                                                       |
-| Helpers `app_*` | 9                                                                        |
-| Buckets Storage | 4 / 4                                                                    |
-| Seed            | 4 pressings, 112 articles, 4 abonnements                                 |
-| Isolation       | `anon` ne voit rien sur `orders`, `clients`, `profiles`, `notifications` |
-| `npm run build` | ✅ passe                                                                 |
-
-> **Correctif appliqué à `001_init.sql`** : les helpers RLS de la section 1
-> référencent `public.profiles`, créé plus bas dans le fichier. Postgres valide
-> le corps des fonctions à leur création et échouait avec
-> `42P01: relation "public.profiles" does not exist`. Le fichier pose désormais
-> `set check_function_bodies = off` avant les helpers, et le remet à `on` en fin
-> de migration. Sans ce correctif, la migration n'est **pas applicable** en une
-> passe — à ne pas supprimer.
-
-Pour viser un autre projet (ex. un environnement de staging) :
-
-```bash
-node scripts/db-apply.mjs --project <autre-ref> --dry-run
-```
-
-### ⚠ SMTP désactivé
-
-Le projet Supabase existant a **l'authentification email (SMTP) désactivée** :
-l'inscription et la connexion par email échoueront tant qu'elle n'est pas
-réactivée : **Dashboard → Authentication → SMTP Settings**.
-
----
-
-## 4. Lancer et vérifier
-
-```bash
-npm run dev          # http://localhost:3000
-```
-
-La page d'accueil est une **page de vérification** qui affiche en direct :
-connexion Supabase, RLS, nombre de pressings lisibles, nombre d'articles du
-catalogue (≥ 15 attendu), présence des tables `orders` / `saas_subscriptions`.
-
-Autres commandes :
-
-```bash
-npm run db:migrate        # applique 001_init.sql + seed.sql au projet lié
-npm run db:seed:demo      # 8 clients + 6 commandes de démonstration (idempotent)
-npm run db:verify         # 22 contrôles : tables, RLS, policies, seed
-npm run dev               # http://localhost:3000
-npm run build             # build de production (typecheck + lint inclus)
-npm run lint              # ESLint seul
-npx tsc --noEmit          # vérification TypeScript seule
-```
-
-**Acceptation Étape 1** : `npm run build` passe ✅ et `npm run db:verify`
-affiche tous les contrôles en vert.
-
----
-
-## 5. Ce que contient l'étape 1
+## Structure
 
 ```
-app/                      layout (Inter + Poppins), page de vérification
-components/ui/            primitives shadcn-style : Button, Input, Label, Badge, Card
-lib/constants.ts          statuts de commande, types de lavage, communes, moyens de paiement
-lib/utils.ts              cn(), formatFCFA(), normalisation téléphone +225
-lib/supabase/
-  client.ts               client navigateur (@supabase/ssr, cookies)
-  server.ts               client serveur (Server Components / Actions)
-  env.ts                  lecture env fail-fast
-  types.ts                types TypeScript du schéma (source : 001_init.sql)
-middleware.ts             rotation de session Supabase à chaque requête
-supabase/migrations/001_init.sql   11 tables + helpers + RLS + index + storage
-supabase/seed.sql         4 pressings de démo + 28 articles × 4 pressings
-scripts/
-  db-apply.mjs            applique les migrations via l'API Management
-  db-verify.mjs           22 contrôles post-migration (tables, RLS, seed)
-supabase/seed-demo.sql    8 clients + 6 commandes de démonstration (idempotent)
+app/
+  (app)/                  espace connecté, protégé par le middleware
+    layout.tsx            sidebar desktop + barre basse mobile
+    dashboard/ orders/ clients/ catalogue/
+    livraisons/ caisse/ rapports/ notifications/ settings/
+  (auth)/                 connexion, inscription, mot de passe
+  onboarding/pressing/    parcours gérant (transactionnel)
+  auth/                   confirmation email, réinitialisation
+  actions/                Server Actions : auth, orders, catalogue, onboarding
+  api/signout/            déconnexion (la sidebar est un client component)
+
+components/
+  ui/                     primitives shadcn/ui
+  layout/                 sidebar, barre basse, en-tête
+  dashboard/ orders/ catalogue/ cash/ auth/
+
+lib/
+  supabase/               clients (browser / serveur), requêtes, types
+  validation/             schémas Zod — la frontière de confiance
+  constants.ts            statuts, moyens de paiement, rôles, communes
+  stores/                 état de l'onboarding (Zustand)
+  utils.ts                formatage, téléphone, redirection sûre
+  *.test.ts               tests Vitest, à côté du code testé
+
+supabase/
+  migrations/             001 schéma + RLS · 002 trigger · 003 onboarding
+                          004 journal des paiements
+  seed.sql  seed-demo.sql
 ```
 
 ---
 
-## 5.1 Onboarding gérant (Phase 2 — Étape 2)
+## Sécurité
 
-Parcours en 3 étapes : `/onboarding/pressing/step-1`, `step-2`, `step-3`.
+L'isolation multi-tenant est appliquée **dans la base**, pas dans
+l'application. Un bug côté serveur ne peut pas exposer les données d'un autre
+pressing.
 
-| Étape | Contenu |
+**40 policies RLS** sur les 11 tables, adossées à des fonctions
+`SECURITY DEFINER` qui lisent `profiles` en court-circuitant le RLS — sans
+quoi une policy sur `profiles` qui lit `profiles` provoquerait une récursion
+infinie.
+
+| Décision | Raison |
 |---|---|
-| 1 — Identité | Nom, commune, adresse, téléphone, horaires par jour (fermé possible), logo (JPEG/PNG/WebP, 2 Mo) |
-| 2 — Services & tarifs | Toggle collecte, toggle livraison + frais global et par commune, délais par type de lavage, catalogue éditable (prix, désactivation, ajout) |
-| 3 — Offre | Free / Pro en cartes comparatives, encart « 30 jours d'essai gratuit », bouton de finalisation |
+| `app_current_pressing_id()`, `app_is_staff()`, `app_is_pressing_admin()` | Une seule source d'autorité, réutilisée par toutes les policies |
+| `search_path` figé sur ces fonctions | Un attaquant ne peut pas créer un schéma contenant un faux `profiles` |
+| Rôle d'inscription en **liste blanche** (trigger `handle_new_user`) | Un client ne peut pas s'auto-attribuer `driver` en forgeant la requête |
+| Sessions en cookies httpOnly | Le JavaScript de la page ne peut pas lire le token |
+| `safeRedirectPath()` sur le paramètre `?redirect=` | Bloque `//evil.com`, `/\evil.com`, les CRLF et les URLs absolues — un lien de phishing ne peut pas détourner la connexion |
+| Mot de passe actuel exigé à la réinitialisation | Le lien transite par une boîte mail, qui n'est pas un canal sûr |
+| Réponse identique que l'email existe ou non | Pas d'énumération de comptes |
+| Aucune stratégie `service_role` de secours | Un client ne doit jamais pouvoir lire la base entière |
+| Suppression en `soft delete` (`deleted_at`) | L'historique reste rattaché |
 
-L'état vit dans un store **Zustand** persisté en `sessionStorage`
-(`lib/stores/onboarding.ts`) : les étapes sont sur des routes distinctes, un
-rechargement ou un retour arrière ne doit pas perdre la saisie.
-
-### Écriture : une transaction, pas trois requêtes
-
-Le contrat prévoyait une Edge Function `complete-onboarding`. **Écart assumé** :
-la migration `003_onboarding.sql` fournit une fonction Postgres
-`complete_onboarding(jsonb)` en `SECURITY DEFINER`. Même atomicité, sans
-déploiement ni aller-retour réseau, et testable directement. Une Edge Function
-peut l'encapsuler plus tard sans changer l'appelant.
-
-Comme la fonction contourne le RLS, **elle revalide tout elle-même** :
-
-```
-✔ pressing + 3 articles + abonnement + profil rattachés, en un appel
-✔ article désactivé NON inséré
-✔ 2ᵉ appel refusé       → « Onboarding deja termine »
-✔ appel par un client   → « Seul un gerant (owner) peut creer un pressing »
-✔ appel anonyme         → refusé
-✔ isolation multi-tenant → le client voit 0 article d'un autre pressing
-```
-
-### Catalogue de référence
-
-Les policies de `articles` filtrent sur le pressing courant : un gérant qui
-n'a pas encore de pressing ne peut donc lire **aucun** article. La fonction
-`get_reference_catalogue()` (`SECURITY DEFINER`) ouvre la lecture du seul
-catalogue type — 28 articles, données commerciales, aucun risque entre tenants.
-Vérifié : lecture directe `articles` → 0 ligne, RPC → 28 lignes, anonyme → 401.
-
-### Fin du mode démonstration
-
-Le repli `service_role` de `lib/supabase/queries.ts` est **supprimé**, ainsi
-que `lib/supabase/admin.ts`. Toute lecture passe désormais par la session de
-l'utilisateur et donc par le RLS. Le bandeau orange « mode démonstration » a
-disparu de l'interface.
-
-### Test de bout en bout
-
-```bash
-npm run db:test:user -- --email essai@pressingpro.ci --role owner
-```
-
-Puis, dans le navigateur : connexion → `/onboarding/pressing` → les 3 étapes →
-`/dashboard`. Le pressing et son catalogue apparaissent immédiatement, le RLS
-les réservant à ce seul compte.
-
-> ⚠ `npm run db:test:user` crée un compte **confirmé** via l'API Admin. Il
-> n'existe pas de « désinscription » : pour repartir d zéro, supprimez le
-> pressing puis `profiles.pressing_id` à `NULL` via le SQL Editor.
-
-### Pièges rencontrés
-
-| Symptôme | Cause | Correction |
-|---|---|---|
-| Le logo ne peut pas être uploadé à l'étape 1 | les policies Storage exigent `folder[1] = pressing_id`, or le pressing n'existe pas encore | policies dédiées pour `onboarding/<user_id>/…` (migration 003) |
-| Le menu déroulant du `<select>` disparaît sous `appearance-none` | la flèche système est retirée sans remplacement | `SelectField` conserve l'apparence sans masquer l'indicateur |
-| Un article désactivé se retrouve en base | le filtre `is_active` était appliqué côté UI uniquement | la fonction SQL filtre aussi, et ne copie que les lignes valides |
+`lib/constants.ts` duplique volontairement deux policies
+(`app_is_staff`, `app_is_pressing_admin`) **pour l'affichage** : un caissier
+ne doit pas voir un bouton « Modifier » qui échouerait avec un message RLS
+incompréhensible. La base reste l'autorité.
 
 ---
 
-## 5.2 Authentification (Phase 2 — Étape 1)
+## Base de données
 
-Quatre écrans dans `app/(auth)/` : `/login`, `/register`, `/forgot-password`,
-`/reset-password`. Le rôle se choisit dès le premier écran d'inscription
-(« Je gère un pressing » / « Je suis client »).
+11 tables, RLS activé sur chacune.
 
-**Créer un compte de test** (le SMTP n'étant pas configuré, l'inscription réelle
-est bloquée par la confirmation d'email) :
-
-```bash
-npm run db:test:user    # -> gerant.test@pressingpro.ci / Pressing2026
-npm run db:test:user -- --role client --email client@exemple.ci
+```
+pressings · profiles · articles · clients · orders · order_items
+payments · deliveries · customer_packs · saas_subscriptions · notifications
 ```
 
-La commande crée **et confirme** le compte via l'API Admin, puis vérifie que le
-trigger `handle_new_user()` a bien rempli `public.profiles`.
+Quatre migrations, appliquées dans l'ordre :
 
-### Ce que la migration `002_auth_trigger.sql` met en place
-
-| Objet | Rôle |
+| Fichier | Contenu |
 |---|---|
-| `handle_new_user()` | Crée la ligne `profiles` à chaque inscription, en `SECURITY DEFINER` + `search_path` figé |
-| trigger `on_auth_user_created` | `AFTER INSERT` sur `auth.users` |
-| `profiles_guard_insert` | Refuse l'insertion d'un profil **tiers** |
-| `profiles_guard_update` | Refuse l'auto-promotion de rôle (`driver`, `manager`…) |
+| `001_init.sql` | Schéma, index, 11 tables, helpers RLS, policies, buckets Storage |
+| `002_auth_trigger.sql` | Création automatique du profil à l'inscription, rôle en liste blanche |
+| `003_onboarding.sql` | `complete_onboarding(jsonb)` — pressing, catalogue et abonnement en **une transaction** |
+| `004_payments_journal.sql` | `record_payment()` — mise à jour du solde **et** écriture du journal, atomiques |
 
-Le rôle est **liste blanche** dans le trigger : un client ne peut pas s'attribuer
-`owner` en forgeant sa requête d'inscription. Testé :
+Deux décisions qui comptent :
 
+- **`order_items` fige `article_name` et `unit_price`** au moment de la
+  commande. Renommer ou supprimer un article plus tard ne réécrit pas
+  l'historique, et les rapports continuent de nommer les bonnes pièces.
+- **Les encaissements passent par `record_payment()`**, pas par deux requêtes
+  depuis l'application. Sans cela, un échec de la seconde laisserait une
+  commande marquée payée sans trace — la caisse ne pourrait plus ventiler
+  par moyen de paiement.
+
+---
+
+## Tests
+
+```bash
+npm test                  # 97 tests
+npm run test:coverage     # 87,5 % des lignes de lib
 ```
-✔ auto-promotion en 'driver' refusée       Changement de role non autorise
-✔ creation d'un profil tiers refusée        Insertion non autorisee sur un profil tiers
-✔ MAJ de son propre full_name acceptée      OK
-```
 
-### Middleware
+Les tests ciblent `lib/**` : la logique métier pure, celle qu'aucun test
+d'intégration ne rattraperait si elle régressait. Aucun composant React n'est
+testé — le rendu est vérifié à l'œil, le typage par le compilateur.
 
-Routes publiques : `/`, `/login`, `/register`, `/forgot-password`,
-`/reset-password`, plus les préfixes `/api` et `/_next`. Tout le reste exige une
-session ; la page visée est mémorisée en `?redirect=` pour y revenir après
-connexion. Un utilisateur déjà connecté qui ouvre `/login` est renvoyé vers
-`/dashboard`.
+| Fichier | Couvre |
+|---|---|
+| `lib/utils.test.ts` | `safeRedirectPath` (9 vecteurs d'attaque), téléphones ivoiriens, montants |
+| `lib/validation/auth.test.ts` | Politiques de mot de passe, liste blanche des rôles, normalisations |
+| `lib/validation/catalogue.test.ts` | Contraintes CHECK de la table `articles`, coercition des formulaires |
+| `lib/validation/onboarding.test.ts` | Cohérence horaires/frais/article, bornes de délai et de prix |
+| `lib/constants.test.ts` | Gardes de statut, libellés, permissions par rôle |
 
-La redirection **par rôle** (owner → `/dashboard`, driver → `/driver/tours`,
-client → `/client/home`) n'est pas dans le middleware : elle appartient à
-l'Étape 4 (layouts par rôle). Interroger `profiles` dans le middleware
-signifierait un aller-retour base sur *chaque* requête, assets compris.
-
-> ⚠ **Conséquence à connaître** : le middleware protégeant désormais le
-> dashboard, le pressing de démonstration n'est plus accessible par l'interface.
-> Un gérant connecté mais sans pressing voit « onboarding requis » — c'est le
-> comportement attendu, l'onboarding arrive à l'Étape 2. Le repli `service_role`
-> de `lib/supabase/queries.ts` ne se déclenche plus que hors session.
-
-### ⚠ SMTP désactivé — l'inscription réelle ne fonctionne pas encore
-
-`mailer_autoconfirm` est à `false` : un compte créé via `/register` reste
-inactif tant que l'email de confirmation n'est pas reçu, et aucun email ne part
-car le SMTP n'est pas configuré. **Avant de tester `/register` dans le
-navigateur** :
-
-- *Dashboard → Authentication → SMTP Settings* → activer le service, **ou**
-- *Authentication → Providers → Email* → décocher « Confirm email » (réservé au
-  développement : plus aucune vérification d'email).
-
-Tant que ce n'est pas fait, utilisez `npm run db:test:user`.
-
-### Pièges React 18 rencontrés
-
-| Symptôme | Cause | Correction |
-|---|---|---|
-| `Cannot find name 'cache'` | `React.cache` n'existe qu'en React 19 | pas de mémoïsation, ou `unstable_cache` |
-| `useFormState is not exported` | API stable seulement en React 19 | `react-hook-form` + état local |
-| `Only plain objects … can be passed to Client Components` | un schéma Zod (instance de classe) passé en prop | passer une **clé** (`kind="login"`), le schéma est importé dans le composant client |
-| `Functions are not valid as a child of Client Components` | render-prop `children` traversant la frontière RSC | la page reste serveur, le formulaire est un composant client séparé |
+La CI (`.github/workflows/ci.yml`) enchaîne `test` → `lint` → `type-check`
+→ `build`, dans cet ordre : un test casse plus tôt et avec un message plus
+clair qu'une erreur de compilation quarante lignes plus loin.
 
 ---
 
-## 5.3 Interface de gestion (mobile)
+## Ce qui est annoncé mais pas encore branché
 
-Application en React/Server Components, sur le modèle de la maquette HTML
-(`exempleInterface.md`) : mobile-first, bottom nav, bouton flottant, panier
-flottant, animations d'apparition en cascade.
+Cette section est volontairement explicite. L'interface et les variables
+d'environnement mentionnent des intégrations **qui n'existent pas encore en
+code**. Aucun appel réseau n'est émis : les montants sont saisis à la main.
 
-| Route | Écran | Données |
+| Intégration | État | Où c'est visible |
 |---|---|---|
-| `/dashboard` | KPI (CA du jour, en traitement, prêtes) + « à livrer aujourd'hui » | `orders` agrégats |
-| `/commandes` | Liste + filtres par statut + recherche | `orders` + `clients` |
-| `/commandes/[id]` | Statut, client, lignes, total, encaissement | `orders`, `order_items` |
-| `/commandes/nouvelle` | Parcours 3 étapes : client → articles → confirmation | `clients`, `articles` |
-| `/clients` | Annuaire + fidélité | `clients` |
-| `/reglages` | Infos pressing, abonnement, session | `pressings` |
+| **CinetPay** (Wave, Orange, MTN, Moov) | Variables déclarées, **aucun appel** | `CASSER_METHODS` affiche les 4 moyens ; le montant est saisi au clavier |
+| **SMS Orange** | Variables déclarées, **aucun appel** | Écran `/notifications` : la table `notifications` reste vide |
+| **WhatsApp Business** | Variables déclarées, **aucun appel** | Idem |
+| `CINETPAY_CALLBACK_URL` | Pointe vers `/api/payments/callback` | **Cette route n'existe pas** |
 
-Le reste de l'application (écran de vérification technique) reste à la racine `/`.
+Conséquences à connaître avant de faire une démonstration :
 
-### Plus de mode démonstration
+- Un client paie **en espèces ou par saisie manuelle** du moyen (Wave,
+  Orange…). Le journal de caisse ventile correctement, mais aucun paiement
+  n'est réellement envoyé à l'opérateur.
+- **Aucun SMS n'est envoyé.** L'écran Notifications affiche un état vide
+  explicite plutôt qu'un faux historique — c'est un choix délibéré.
+- `NEXT_PUBLIC_APP_URL` doit être renseigné, sinon les liens de
+  confirmation d'email et de réinitialisation pointent vers `localhost`.
 
-Le repli `service_role` a été **supprimé** (voir « Onboarding gérant »). Toute
-lecture passe par la session de l'utilisateur, donc par le RLS : un gérant ne
-voit que son pressing, et rien ne s'affiche sans session.
+### SMTP
 
-> Les Server Actions de `app/actions/orders.ts` vérifient **encore** que la
-> ressource appartient au pressing du contexte avant d'écrire. Cette double
-> vérification est volontairement conservée : elle protège même si une policy
-> RLS était un jour relâchée par erreur.
-
-### Pièges rencontrés (à connaître)
-
-| Symptôme | Cause | Correction |
-|---|---|---|
-| `Property 'pressing_id' does not exist on type 'never'` | `@supabase/ssr` 0.5.2 trop ancien face à `supabase-js` 2.117 : le parseur `select` renvoie `never` | `@supabase/ssr` **0.12.7** — le projet a été mis à jour |
-| `PGRST100 … unexpected "f"` sur une recherche | PostgREST refuse un filtre pointé sur une ressource embarquée dans un `or()` | résoudre les `clients` d'abord, filtrer sur `client_id` |
-| Tendance du CA affichant « +942 % » | moyenne calculée sur 2 commandes | échantillon minimal de 5 commandes, sinon pas de tendance |
-| Le seed démo doublonne les lignes | `order_items` n'a aucune contrainte d'unicité | `DELETE` des lignes de démo avant l'insert |
-
-### Schéma (11 tables, toutes en RLS)
-
-`pressings` · `profiles` · `articles` · `clients` · `orders` · `order_items` ·
-`payments` · `deliveries` · `saas_subscriptions` · `customer_packs` · `notifications`
-
-**Partis pris RLS**
-
-- Fonctions `SECURITY DEFINER` (`app_current_pressing_id()`, `app_is_staff()`, …)
-  pour éviter la récursion des policies.
-- Chaque écriture appartient à `pressing_id = app_current_pressing_id()` →
-  un gérant ne voit **jamais** les données d'un autre pressing.
-- Un client ne voit que **ses** commandes via `app_is_order_client()`.
-- Pas de policy `DELETE` sur `orders`, `payments`, `notifications` :
-  on annule/rembourse, on ne supprime pas (intégrité comptable).
-- `pressings` en lecture ouverte aux utilisateurs connectés : le client doit
-  pouvoir parcourir l'annuaire des pressings de sa commune (onboarding Phase 2).
-- Buckets Storage (`order-photos`, `delivery-proofs`, `article-images`,
-  `pressing-assets`) isolés par le dossier `<pressing_id>/`.
+L'inscription par email **échoue silencieusement** si le SMTP du projet
+Supabase n'est pas activé (*Dashboard → Authentication → SMTP Settings*).
+Aucune erreur n'est levée par l'API ; il faut le savoir à l'avance.
 
 ---
 
-## 6. Dépannage
+## Feuille de route
 
-| Symptôme                                                        | Cause                                            | Correction                                 |
-| --------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
-| `relation "public.pressings" does not exist`                    | Migration non appliquée                          | Exécuter `001_init.sql` dans le SQL Editor |
-| `duplicate key value violates constraint "..."`                 | Seed rejoué à moitié                             | Relancer `seed.sql` (idempotent)           |
-| `infinite recursion detected in policy for relation "profiles"` | Policy `profiles` sans helper `SECURITY DEFINER` | Reprendre la migration telle quelle        |
-| Erreur `Variable d'environnement manquante`                     | `.env.local` absent                              | `cp .env.example .env.local`               |
-| Inscription email qui échoue                                    | SMTP Supabase désactivé                          | Authentication → SMTP Settings             |
-| `npm run build` : module introuvable                            | dépendances non installées                       | `npm install`                              |
+Ce qui reste réellement à faire, par ordre de valeur :
 
----
-
-## 7. Suite (attend votre validation)
-
-1. ✅ **Phase 1 — Étape 1 : scaffold + DB**
-2. ✅ **Phase 2 — Étape 1 : Auth multi-rôles** (4 écrans, trigger, middleware)
-3. ✅ **Phase 2 — Étape 2 : Onboarding gérant** (3 étapes, transaction unique)
-4. ⏸ **Phase 2 — Étape 3 : Onboarding client** *(prochaine étape)*
-5. ⏸ **Phase 2 — Étape 4 : Layouts par rôle** (owner / driver / client)
-6. ⏸ **Phase 2 — Étape 5 : Profil & paramètres**
-7. Phase 2 : app mobile PWA client + livreur
-8. Phase 3 : CinetPay + SMS/WhatsApp
-7. Phase 4 : fidélité, packs, parrainage, IA photo
-8. Phase 5 : signature, géoloc, export comptable, optimisation mobile
+1. **CinetPay** — le paiement mobile money est *la* promesse du produit
+   (86 % des transactions en Côte d'Ivoire). Sans lui, la caisse est
+   entièrement manuelle.
+2. **Notifications SMS** — avec le webhook CinetPay, l'état de la commande
+   peut être poussé au client sans qu'il ait à ouvrir l'application.
+3. **Rôles dans les tableaux et formulaires** — les gardes `isAdminRole`
+   existent et sont testées, mais le masquage fin des actions n'est appliqué
+   qu'à l'écran catalogue.
+4. **Tests de rendu** — @testing-library, si le besoin s'en fait sentir. À
+   ce jour le typecheck et la revue visuelle suffisent.
+5. **Vues SQL pour les agrégats** — les rapports calculent en JavaScript
+   avec un plafond de lignes. Correct à l'échelle d'un pressing ; à auditer
+   au-delà de quelques milliers de commandes par an.
