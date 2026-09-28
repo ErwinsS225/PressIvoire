@@ -761,8 +761,42 @@
  * déborder sur le voisin. Le :active resserre (0.98) : c'est le « press »
  * qui confirme le clic sur tactile comme à la souris.
  */
+/*
+ * Transition posee ICI et non sur .elev-1 : les tuiles KPI n'ont pas la
+ * classe elev, elles changeraient de scale d'un coup, sans douceur.
+ * Meme courbe que rise-in : le survol prolonge naturellement l'entree.
+ * Le :active garde sa duree courte (0.12s) pour un « press » immediat.
+ */
 .zoom-card {
   will-change: transform;
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * rise-in se termine en `both` : sa pose finale (transform/opacite) reste
+ * appliquee, et une animation — meme terminee — l'emporte sur les
+ * declarations normales. Le zoom du survol serait donc ignore.
+ * On repasse ces cartes en `backwards` : masquees pendant leur delai
+ * d'entree, puis elles rendent la main au CSS. `rise-zoom` ajoute le
+ * petit scale a l'arrivee, sans toucher aux autres stagger-items.
+ */
+.zoom-card.stagger-item {
+  animation-name: rise-zoom;
+  animation-fill-mode: backwards;
+  opacity: 1;
+}
+
+@keyframes rise-zoom {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @media (hover: hover) {

@@ -97,21 +97,21 @@ export function StatCard({
     return (
         <div
             className={cn(
-                "zoom-card stagger-item group flex flex-col items-start p-8",
+                "zoom-card stagger-item group flex flex-col items-start p-6",
                 rootByVariant[variant],
             )}
             style={{ "--stagger-index": index } as React.CSSProperties}
         >
             <div
                 className={cn(
-                    "zoom-icon mb-6 flex h-12 w-12 items-center justify-center",
+                    "zoom-icon mb-4 flex h-10 w-10 items-center justify-center",
                     iconShell[iconType],
                 )}
             >
-                <Icon className="h-6 w-6" />
+                <Icon className="h-5 w-5" />
             </div>
 
-            <h3 className={cn("mb-2 text-2xl font-bold", titleByVariant[variant])}>
+            <h3 className={cn("mb-1 text-base font-semibold leading-snug", titleByVariant[variant])}>
                 {title}
             </h3>
 
@@ -119,7 +119,7 @@ export function StatCard({
                 change, l'œil est attiré sans que rien ne clignote. */}
             <div
                 className={cn(
-                    "breathe text-3xl font-extrabold tabular-nums",
+                    "breathe text-2xl font-extrabold tabular-nums",
                     valueByVariant[variant],
                 )}
             >
@@ -145,7 +145,7 @@ export function StatCard({
                 <span>depuis le mois dernier</span>
             </div>
             {description && (
-                <p className={cn("mb-8 mt-2 text-sm", mutedByVariant[variant])}>
+                <p className={cn("mb-6 mt-1.5 text-xs", mutedByVariant[variant])}>
                     {description}
                 </p>
             )}
@@ -154,7 +154,7 @@ export function StatCard({
                 <Link
                     href={linkHref}
                     className={cn(
-                        "mt-auto px-6 py-2.5 transition-colors",
+                        "mt-auto px-4 py-2 text-xs transition-colors duration-300",
                         buttonByVariant[variant],
                     )}
                 >
