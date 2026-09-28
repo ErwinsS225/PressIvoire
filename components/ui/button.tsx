@@ -58,6 +58,8 @@ const buttonVariants = cva(
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-6 text-base",
         icon: "h-10 w-10",
+        /* Carré compact — réservé aux barres d'outils (header de carte…). */
+        "icon-sm": "h-8 w-8",
       },
     },
     defaultVariants: {

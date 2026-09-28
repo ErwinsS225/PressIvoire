@@ -57,6 +57,17 @@
     --flag-500: 28 88% 52%;
 
     /*
+     * Palette des graphiques (chart-1…5). Même famille que la charte :
+     * bleu bouton, ardoise, indigo, ambre, sarcelle. Les composants
+     * `ChartContainer` les déclinent en `--color-<clé>` par série.
+     */
+    --chart-1: 221 83% 53%; /* bleu — série principale */
+    --chart-2: 222 30% 12%; /* ardoise foncée — série secondaire */
+    --chart-3: 243 75% 59%; /* indigo */
+    --chart-4: 28 88% 52%; /* ambre */
+    --chart-5: 173 70% 42%; /* sarcelle */
+
+    /*
      * BLEU DES BOUTONS.
      *
      * Déclaré en variable CSS, et utilisé via `bg-button` / `hover:bg-button-strong`.

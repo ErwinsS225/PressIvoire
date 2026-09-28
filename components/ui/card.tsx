@@ -60,6 +60,23 @@ const CardDescription = React.forwardRef<
 ));
 CardDescription.displayName = "CardDescription";
 
+/*
+ * Zone d'actions du header (boutons d'outils, menu…). Séparée de
+ * `CardTitle`/`CardDescription` pour que le placement reste explicite :
+ * dans un header en colonne, elle s'aligne à droite via `ml-auto`.
+ */
+const CardAction = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center gap-2", className)}
+    {...props}
+  />
+));
+CardAction.displayName = "CardAction";
+
 const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -86,5 +103,6 @@ export {
   CardFooter,
   CardTitle,
   CardDescription,
+  CardAction,
   CardContent,
 };

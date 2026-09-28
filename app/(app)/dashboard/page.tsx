@@ -88,7 +88,11 @@ export default async function DashboardPage() {
 
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-7">
           <div className="lg:col-span-4">
-            <RevenueChart data={data.monthlyRevenue} />
+            <RevenueChart
+              data={data.monthlyRevenue}
+              revenue={data.revenue}
+              ordersCount={data.orders.count}
+            />
           </div>
           <div className="lg:col-span-3">
             <RecentOrders orders={data.recentOrders} />
