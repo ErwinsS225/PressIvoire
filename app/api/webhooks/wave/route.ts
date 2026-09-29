@@ -41,6 +41,16 @@ import {
 /** Le webhook est par nature dynamique : jamais de cache. */
 export const dynamic = "force-dynamic";
 
+/**
+ * Runtime Node.js explicite.
+ *
+ * Ce handler utilise `node:crypto` (HMAC de la signature) et le client
+ * Supabase. Les deux exigent le runtime Node — sur l'Edge, l'import
+ * echouerait a la compilation. La valeur par defaut d'un Route Handler est
+ * Node.js, mais la dire evite un edition accidentelle en `edge` plus tard.
+ */
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   // 1. Corps BRUT, avant toute lecture de la signature.
   const rawBody = await request.text();
