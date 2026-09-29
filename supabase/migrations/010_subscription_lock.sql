@@ -162,7 +162,20 @@ grant execute on function public.set_pressing_subscription(
 revoke all on function public.pressings_guard_subscription() from public, anon, authenticated;
 
 -- -----------------------------------------------------------------------------
--- 4. CONTROLE
+-- Neutralisation du commentaire de la colonne : le prestataire de paiement
+-- n'est pas fige dans le schema. `transaction_id` porte l'identifiant de
+-- l'evenement recu du prestataire (Wave aujourd'hui, CinetPay possiblement).
+--
+-- Quel que soit le prestataire, l'identite du paiement est stockee dans
+-- MIEUX que dans le presse-papiers du developpeur : c'est ce qui rend le
+-- rapprochement comptable possible, et ce qui empeche un encaissement d'etre
+-- enregistre deux fois (contrainte d'unicite).
+-- -----------------------------------------------------------------------------
+comment on column public.saas_subscriptions.transaction_id is
+  'Identifiant de l''evenement de paiement chez le prestataire (Wave, CinetPay). Unique : garantit qu''un encaissement n''est enregistre qu''une fois.';
+
+-- -----------------------------------------------------------------------------
+-- 2. CONTROLE
 -- -----------------------------------------------------------------------------
 select tgname
   from pg_trigger

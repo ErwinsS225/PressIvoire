@@ -906,6 +906,18 @@ export type Database = {
         Returns: Json;
       };
       reference_pressing_id: { Args: never; Returns: string };
+      set_pressing_subscription: {
+        Args: {
+          p_billing_cycle?: string;
+          p_expires_at: string;
+          p_payment_method?: string;
+          p_plan: string;
+          p_pressing_id: string;
+          p_price?: number;
+          p_transaction_id?: string;
+        };
+        Returns: undefined;
+      };
       remove_team_member: {
         Args: { p_pressing_id: string; p_user_id: string };
         Returns: undefined;

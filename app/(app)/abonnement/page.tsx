@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Check, Minus, Sparkles, TriangleAlert } from "lucide-react";
+import { Check, Minus, Sparkles } from "lucide-react";
 
 import { Header } from "@/components/layout/header";
+import { CheckoutButton } from "@/components/subscription/checkout-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
@@ -13,6 +12,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { getContext } from "@/lib/supabase/queries";
+import { isAdminRole } from "@/lib/constants";
 import {
     getEffectivePlan,
     getMonthlyOrderCountForPlan,
@@ -37,7 +37,7 @@ const OFFER = { free: PLANS.free, pro: PLANS.pro } as const;
  * branché, et on ne fait pas semblant le contraire.
  */
 export default async function SubscriptionPage() {
-    const { pressing } = await getContext();
+    const { pressing, profile } = await getContext();
 
     if (!pressing) {
         redirect("/onboarding/pressing");
@@ -227,7 +227,21 @@ export default async function SubscriptionPage() {
                                     ))}
                                 </ul>
 
-                                {!isCurrent && <UpgradeCta planName={p.name} />}
+                                {/*
+                                 * Le bouton ne s'affiche que pour un plan
+                                 * payant qui n'est pas le plan courant.
+                                 * Sur le plan gratuit, il n'y a rien a
+                                 * acheter — afficher « Passer au plan
+                                 * Gratuit » serait absurde.
+                                 */}
+                                {p.id !== "free" && !isCurrent ? (
+                                    <CheckoutButton
+                                        planId={p.id}
+                                        planName={p.name}
+                                        price={p.price}
+                                        disabled={!isAdminRole(profile?.role)}
+                                    />
+                                ) : null}
                             </CardContent>
                         </Card>
                     );
@@ -265,46 +279,26 @@ export default async function SubscriptionPage() {
                 </Card>
             )}
 
-            {/* --- Honnêteté sur le paiement --- */}
-            <Card className="elev-1 border-[#b45309]/30 bg-[#fef3c7]/30">
-                <CardContent className="flex gap-3 pt-6">
-                    <TriangleAlert className="h-5 w-5 shrink-0 text-[#b45309]" />
-                    <div className="grid gap-1">
-                        <p className="font-medium text-[#b45309]">
-                            Le paiement en ligne n&apos;est pas encore actif
-                        </p>
-                        <p className="text-sm text-[#b45309]/90">
-                            L&apos;activation du plan Pro se fait pour l&apos;instant
-                            auprès du support. Dès que la passerelle de paiement
-                            (Wave, Orange Money, MTN, Moov) sera branchée, ce bouton
-                            paiera directement depuis l&apos;écran.
-                        </p>
-                    </div>
+            {/* --- Ce que le paiement fait, et comment --- */}
+            {/*
+             * On explique le mecanisme plutot que de le cacher : le gerant
+             * paie sur le site Wave, et l'activation suit aussitot. Comme il
+             * n'y a pas de carte bancaire ici, il doit comprendre pourquoi il
+             * va quitter le site — et savoir que c'est normal.
+             */}
+            <Card className="elev-1">
+                <CardContent className="grid gap-1 pt-6 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">
+                        Comment se passe le paiement
+                    </p>
+                    <p>
+                        Vous allez payer sur la page sécurisée de Wave, par
+                        mobile money (Orange, MTN, Moov) ou par carte. Votre
+                        compte est mis à niveau dès la confirmation du
+                        paiement — vous n&apos;avez rien à demander au support.
+                    </p>
                 </CardContent>
             </Card>
-        </div>
-    );
-}
-
-/**
- * Appel à l'action d'un plan payant.
- *
- * Ce n'est PAS un bouton d'achat : le paiement n'existe pas encore, et un
- * bouton qui ne fait rien est pire que pas de bouton du tout. On renvoie
- * vers le support — en le disant.
- */
-function UpgradeCta({ planName }: { planName: string }) {
-    return (
-        <div className="grid gap-2 border-t pt-4">
-            <Button asChild className="w-full">
-                <Link href="mailto:support@pressplus.ci?subject=Activation%20du%20plan%20Pro">
-                    Contacter le support
-                </Link>
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-                Activation du plan {planName} par le support — le paiement en
-                ligne arrive bientôt.
-            </p>
         </div>
     );
 }

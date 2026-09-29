@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { resolveDestination } from "@/lib/routing";
+import { getAppUrl } from "@/lib/app-url";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeIvorianPhone, safeRedirectPath } from "@/lib/utils";
 import {
@@ -93,27 +94,11 @@ const ERROR_MESSAGES: Record<string, string> = {
     "La connexion par téléphone n'est pas activée sur ce projet. Utilisez votre email.",
 };
 
-/**
- * URL publique de l'application, sans barre oblique finale.
- *
- * Une seule source de verite pour tous les liens envoyes par email (confirmation
- * de compte, reinitialisation). Si la variable est absente, on retombe sur
- * l'hote de developpement plutot que de produire un lien relatif invalide.
+/*
+ * Les liens de confirmation et de reinitialisation utilisent la meme URL
+ * publique que les redirections de la passerelle de paiement — une seule
+ * source, dans `lib/app-url.ts`.
  */
-function getAppUrl(): string {
-  const url = process.env.NEXT_PUBLIC_APP_URL;
-  if (!url) {
-    // En developpement, on peut se rabattre sur localhost.
-    if (process.env.NODE_ENV === "development") {
-      return "http://localhost:3000";
-    }
-    // En production, c'est une erreur de configuration critique.
-    throw new Error(
-      "La variable d'environnement NEXT_PUBLIC_APP_URL est manquante. Le lien de reinitialisation ne peut pas etre genere.",
-    );
-  }
-  return url.replace(/\/$/, "");
-}
 
 /** Traduit une erreur Supabase en message comprehensible, sans rien divulguer. */
 function translateError(message: string): string {
