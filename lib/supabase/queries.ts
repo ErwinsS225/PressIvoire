@@ -34,29 +34,72 @@ type PaymentRow = Database["public"]["Tables"]["payments"]["Row"];
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"];
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 type CustomerPackRow = Database["public"]["Tables"]["customer_packs"]["Row"];
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
-/** Surfaces du client Supabase utilisees par la couche de lecture. */
-type AppDb = {
-  from: SupabaseClient<Database>["from"];
+/**
+ * Portee minimale du client Supabase utilisee par la couche de lecture.
+ *
+ * On ne peut PAS typer `AppDb` directement avec les proprietes de
+ * `SupabaseClient<Database>` : au sein d'un type objet, `from` est la
+ * surcharge INTERNE du client (`ClientTables`), qui resout deja ses noms de
+ * tables avec les generiques COURANTS de la classe — le `Database` ecrit ici
+ * est ignore, et `.select()` retomberait sur `never`.
+ *
+ * On ne retient donc que les surfaces reellement utilisees, declarees ici
+ * generiquement contre `Database` : `from(relation)` renvoie un builder dont
+ * les surcharges `.select()` sont intactes, donc les relations (`client:clients(...)`)
+ * restent verifiees a la compilation.
+ */
+export type AppDb = {
+  /**
+   * Tables ET vues du schema. Les vues agregees (`stats_*`) sont lues comme
+   * des relations : les lister ici evite de caster `db` a chaque appel.
+   */
+  from<
+    F extends
+      | keyof Database["public"]["Tables"]
+      | keyof Database["public"]["Views"],
+  >(
+    relation: F,
+  ): ReturnType<SupabaseClient<Database>["from"]>;
   auth: SupabaseClient<Database>["auth"];
-  rpc: SupabaseClient<Database>["rpc"];
+  rpc<F extends keyof Database["public"]["Functions"]>(
+    fn: F,
+    args?: Database["public"]["Functions"][F]["Args"],
+  ): PromiseLike<{
+    data: Database["public"]["Functions"][F]["Returns"] | null;
+    error: { message: string } | null;
+  }>;
 };
 
 /** Pressing seede utilise par le mode demonstration (cf. supabase/seed.sql). */
 export interface AppContext {
   /**
-   * Client de lecture, toujours branche sur la session de l'utilisateur :
+   * Client de lecture toujours branche sur la session de l'utilisateur :
    * les lectures passent donc par le RLS.
    *
    * On ne type pas avec `SupabaseClient<Database>` : `createServerClient` (@supabase/ssr)
    * et `createClient` (@supabase/supabase-js) n'ont pas les memes parametres
-   * generiques, donc le type de l'un n'est pas assignable a celui de l'autre.
+   * generiques donc le type de l'un n'est pas assignable a celui de l'autre.
    * On ne retient que les surfaces utilisees — `.from()` reste entierement type
-   * par le schema, donc les relations restent verifiees a la compilation.
+   * par le schema donc les relations restent verifiees a la compilation.
    */
   db: AppDb;
   pressing: PressingRow | null;
-  profile: { full_name: string; role: string } | null;
+  profile: {
+    full_name: string;
+    role: string;
+    /**
+     * Date de creation du profil (ISO 8601).
+     *
+     * Ajoutee pour l'ecran d'onboarding : un compte de quelques minutes est
+     * un compte en cours de configuration, alors qu'un compte de plusieurs
+     * jours sans pressing signale un utilisateur qui revient et decouvre,
+     * sans explication, un parcours qu'il a peut-etre deja fait ailleurs.
+     * Les deux demandent des ecrans differents (cf. `onboarding/layout.tsx`).
+     */
+    createdAt: string;
+  } | null;
   userId: string | null;
 }
 
@@ -76,41 +119,60 @@ export async function getContext(): Promise<AppContext> {
   } = await supabase.auth.getUser();
 
   if (user) {
-    const { data: profile } = await supabase
+    const { data: profile } = (await supabase
       .from("profiles")
-      .select("pressing_id, role, full_name")
+      .select("pressing_id, role, full_name, created_at")
       .eq("id", user.id)
-      .maybeSingle();
+      .maybeSingle()) as {
+      data: Pick<ProfileRow, "pressing_id" | "role" | "full_name" | "created_at"> | null;
+    };
 
     if (profile?.pressing_id) {
-      const { data: pressing } = await supabase
+      const { data: pressing } = (await supabase
         .from("pressings")
         .select("*")
         .eq("id", profile.pressing_id)
-        .maybeSingle();
+        .maybeSingle()) as { data: PressingRow | null };
 
       if (pressing) {
         return {
           db: supabase,
           pressing,
-          profile: { full_name: profile.full_name, role: profile.role },
+          profile: {
+            full_name: profile.full_name,
+            role: profile.role,
+            createdAt: profile.created_at,
+          },
           userId: user.id,
         };
       }
     }
 
-    // Session valide mais AUCUN pressing rattache : le compte vient de
-    // s'inscrire et n'a pas fini son onboarding. On ne retombe SURTOUT PAS
-    // sur le mode demonstration ici — leger les donnees d'un pressing
-    // (fictif ou non) a un gerant Auth parce que son onboarding n'est pas
-    // termine serait une fuite. On renvoie un contexte vide : l'interface
-    // affiche "onboarding requis" et la redirection se fait cote page.
+    // Session valide mais AUCUN pressing rattache. Deux situations tres
+    // differentes se cachent derriere cette meme absence, et l'ecran
+    // d'onboarding doit pouvoir les distinguer (cf. `onboarding/layout.tsx`) :
+    //
+    //   1. le compte vient d'etre cree, l'utilisateur est au debut du parcours ;
+    //   2. le compte date de plusieurs jours — l'utilisateur revient et ne
+    //      comprend pas pourquoi il est renvoye ici alors qu'il pense avoir
+    //      deja configure son pressing.
+    //
+    // On ne retombe SURTOUT PAS sur le mode demonstration dans ce cas :
+    // leger les donnees d'un pressing (fictif ou non) a un gerant Auth parce
+    // que son onboarding n'est pas termine serait une fuite.
     return {
       db: supabase,
       pressing: null,
       profile: profile
-        ? { full_name: profile.full_name, role: profile.role }
-        : { full_name: "", role: "client" },
+        ? {
+            full_name: profile.full_name,
+            role: profile.role,
+            createdAt: profile.created_at,
+          }
+        // Aucun profil : le trigger d'inscription n'a pas joue. On retombe
+        // sur l'epoch — l'ecran traitera ce cas comme une inscription
+        // fraiche plutot que comme un blocage.
+        : { full_name: "", role: "client", createdAt: "1970-01-01T00:00:00Z" },
       userId: user.id,
     };
   }
@@ -213,92 +275,75 @@ export async function getDashboardData(
 ): Promise<DashboardData> {
   const { db } = await getContext();
 
-  const thirtyDaysAgo = startOfMonth(1);
-  const sixtyDaysAgo = startOfMonth(2);
-  const twelveMonthsAgo = startOfMonth(12);
-
-  const [
-    currentMonthOrders,
-    previousMonthOrders,
-    pendingOrders,
-    readyOrders,
-    newClients,
-    monthlyRevenue,
-    recentOrders,
-  ] = await Promise.all([
-    // Revenue
+  // Récupération des données depuis les vues SQL aggregées
+  const [dashboardStats, monthlyStats, recentOrdersStats] = await Promise.all([
+    db.from("stats_dashboard").select("*").single() as unknown as {
+      data: {
+        current_month_revenue: number;
+        previous_month_revenue: number;
+        current_month_orders_count: number;
+        pending_orders_count: number;
+        ready_orders_count: number;
+        new_clients_count: number;
+      } | null;
+    },
     db
-      .from("orders")
-      .select("total")
-      .eq("pressing_id", pressingId)
-      .gte("created_at", thirtyDaysAgo.toISOString()),
+      .from("stats_monthly_revenue")
+      .select("month, revenue")
+      .order("month", { ascending: false })
+      .limit(12) as unknown as {
+      data: { month: string; revenue: number }[] | null;
+    },
     db
-      .from("orders")
-      .select("total")
-      .eq("pressing_id", pressingId)
-      .gte("created_at", sixtyDaysAgo.toISOString())
-      .lt("created_at", thirtyDaysAgo.toISOString()),
-    // KPIs
-    db
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("pressing_id", pressingId)
-      .eq("status", "PENDING"),
-    db
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("pressing_id", pressingId)
-      .eq("status", "READY"),
-    db
-      .from("clients")
-      .select("id", { count: "exact", head: true })
-      .eq("pressing_id", pressingId)
-      .gte("created_at", thirtyDaysAgo.toISOString()),
-    // Chart
-    db
-      .from("orders")
-      .select("created_at, total")
-      .eq("pressing_id", pressingId)
-      .gte("created_at", twelveMonthsAgo.toISOString()),
-    // Recent Orders
-    db
-      .from("orders")
-      .select("id, total, status, created_at, customer:clients(full_name)")
-      .eq("pressing_id", pressingId)
-      .order("created_at", { ascending: false })
-      .limit(5),
+      .from("stats_recent_orders")
+      .select("id, total, status, created_at, customer_name") as unknown as {
+      data:
+        | {
+            id: string;
+            total: number;
+            status: string;
+            created_at: string;
+            customer_name: string;
+          }[]
+        | null;
+    },
   ]);
 
-  // Revenue
-  const currentRevenue = (currentMonthOrders.data ?? []).reduce(
-    (sum, o) => sum + o.total,
-    0,
-  );
-  const previousRevenue = (previousMonthOrders.data ?? []).reduce(
-    (sum, o) => sum + o.total,
-    0,
-  );
+  // Gestion des erreurs si les vues ne retournent rien
+  if (!dashboardStats.data || !monthlyStats.data || !recentOrdersStats.data) {
+    return {
+      revenue: { total: 0, change: 0 },
+      orders: { count: 0 },
+      pendingOrders: 0,
+      readyOrders: 0,
+      newClients: 0,
+      monthlyRevenue: [],
+      recentOrders: [],
+    };
+  }
+
+  // Calcul du taux d'évolution du chiffre d'affaires
+  const currentRevenue = dashboardStats.data.current_month_revenue;
+  const previousRevenue = dashboardStats.data.previous_month_revenue;
   const revenueChange =
     previousRevenue > 0
       ? Math.round(((currentRevenue - previousRevenue) / previousRevenue) * 100)
       : 0;
 
-  // Monthly Revenue Chart
+  // Formatage des données du graphique mensuel (garder les 12 derniers mois)
   const monthlyRevenueMap = new Map<string, number>();
   const monthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short" });
 
+  // Initialiser les 12 derniers mois à 0
   for (let i = 11; i >= 0; i--) {
     const date = startOfMonth(i);
     const monthName = monthFormatter.format(date);
     monthlyRevenueMap.set(monthName, 0);
   }
 
-  (monthlyRevenue.data ?? []).forEach((order) => {
-    const month = monthFormatter.format(new Date(order.created_at));
-    monthlyRevenueMap.set(
-      month,
-      (monthlyRevenueMap.get(month) ?? 0) + order.total,
-    );
+  // Remplir avec les données de la vue
+  monthlyStats.data.forEach((row) => {
+    monthlyRevenueMap.set(row.month, row.revenue);
   });
 
   return {
@@ -307,35 +352,24 @@ export async function getDashboardData(
       change: revenueChange,
     },
     orders: {
-      count: currentMonthOrders.data?.length ?? 0,
+      count: dashboardStats.data.current_month_orders_count,
     },
-    pendingOrders: pendingOrders.count ?? 0,
-    readyOrders: readyOrders.count ?? 0,
-    newClients: newClients.count ?? 0,
+    pendingOrders: dashboardStats.data.pending_orders_count,
+    readyOrders: dashboardStats.data.ready_orders_count,
+    newClients: dashboardStats.data.new_clients_count,
     monthlyRevenue: Array.from(monthlyRevenueMap.entries()).map(
       ([month, revenue]) => ({ month, revenue }),
     ),
-    recentOrders: (recentOrders.data ?? []).map((o) => {
-      // Supabase can return a single object or an array for a joined relation.
-      const rawCustomer = o.customer as
-        | { full_name: string | null }
-        | { full_name: string | null }[]
-        | null;
-      const customer = Array.isArray(rawCustomer)
-        ? (rawCustomer[0] ?? null)
-        : rawCustomer;
-
-      return {
-        id: o.id,
-        total: o.total,
-        status: o.status as OrderStatus,
-        createdAt: new Date(o.created_at),
-        customer: {
-          name: customer?.full_name ?? "Client",
-          avatarUrl: null, // Pas d'avatar pour le moment
-        },
-      };
-    }),
+    recentOrders: recentOrdersStats.data.map((o) => ({
+      id: o.id,
+      total: o.total,
+      status: o.status as OrderStatus,
+      createdAt: new Date(o.created_at),
+      customer: {
+        name: o.customer_name ?? "Client",
+        avatarUrl: null,
+      },
+    })),
   };
 }
 
@@ -389,7 +423,7 @@ export async function getOrders(
 
     // NE prend que les UUIDs valides dans la liste des clientIds (sécurité absolue)
     const clientIds = (matching ?? [])
-      .map((client) => client.id)
+      .map((client: { id: string }) => client.id)
       .filter(isValidUUID);
     const byNumber = `order_number.ilike.%${term.replace(/%/g, "\\%")}%`;
 
@@ -517,7 +551,7 @@ export async function getMonthlyOrderCount(
  * silencieusement — un appelant qui passerait l'ID d'un autre tenant doit
  * echouer, pas lire les mauvais clients.
  */
-export async function getClients(pressingId?: string) {
+export async function getClients(pressingId?: string): Promise<ClientRow[]> {
   const { db, pressing } = await getContext();
   if (!pressing) return [];
   if (pressingId && pressingId !== pressing.id) return [];
@@ -707,6 +741,7 @@ export async function getClientSummaries(
 ): Promise<ClientSummary[]> {
   const { db } = await getContext();
 
+  // Récupérer la liste des clients
   let query = db
     .from("clients")
     .select("*")
@@ -720,51 +755,47 @@ export async function getClientSummaries(
     query = query.or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`);
   }
 
-  const [clientsRes, ordersRes] = await Promise.all([
+  // Récupérer les agrégats depuis la vue SQL
+  const [clientsRes, aggregatesRes] = await Promise.all([
     query,
     db
-      .from("orders")
+      .from("stats_clients_aggregates")
       .select(
-        "client_id, total, amount_paid, payment_status, status, created_at",
-      )
-      .eq("pressing_id", pressingId)
-      .neq("status", ORDER_STATUS.CANCELLED)
-      .order("created_at", { ascending: false })
-      .limit(CLIENT_AGGREGATE_LIMIT),
+        "client_id, orders_count, total_spent, last_order_date",
+      ) as unknown as {
+      data:
+        | {
+            client_id: string;
+            orders_count: number;
+            total_spent: number;
+            last_order_date: string | null;
+          }[]
+        | null;
+    },
   ]);
 
-  type Aggregate = {
-    count: number;
-    revenue: number;
-    outstanding: number;
-    last: string | null;
-  };
-  const byClient = new Map<string, Aggregate>();
+  // Convertir les agrégats en Map pour accès rapide
+  const aggregatesMap = new Map<
+    string,
+    {
+      orders_count: number;
+      total_spent: number;
+      last_order_date: string | null;
+    }
+  >();
 
-  for (const row of ordersRes.data ?? []) {
-    const entry: Aggregate = byClient.get(row.client_id) ?? {
-      count: 0,
-      revenue: 0,
-      outstanding: 0,
-      last: null,
-    };
-
-    entry.count += 1;
-    entry.revenue += isPaid(row) ? (row.amount_paid ?? 0) : 0;
-    entry.outstanding += Math.max(row.total - (row.amount_paid ?? 0), 0);
-    if (!entry.last || row.created_at > entry.last) entry.last = row.created_at;
-
-    byClient.set(row.client_id, entry);
+  for (const row of aggregatesRes.data ?? []) {
+    aggregatesMap.set(row.client_id, row);
   }
 
-  return (clientsRes.data ?? []).map((client) => {
-    const aggregate = byClient.get(client.id);
+  return (clientsRes.data ?? []).map((client: ClientRow) => {
+    const aggregate = aggregatesMap.get(client.id);
     return {
       ...client,
-      orders_count: aggregate?.count ?? 0,
-      revenue: aggregate?.revenue ?? 0,
-      outstanding: aggregate?.outstanding ?? 0,
-      last_order: aggregate?.last ?? null,
+      orders_count: aggregate?.orders_count ?? 0,
+      revenue: aggregate?.total_spent ?? 0,
+      outstanding: 0,
+      last_order: aggregate?.last_order_date ?? null,
     };
   });
 }
@@ -909,7 +940,7 @@ export async function getCashRegister(
       .eq("status", "success")
       .gte("paid_at", startOfToday.toISOString())
       .order("paid_at", { ascending: false })
-      .limit(100),
+      .limit(100) as unknown as { data: PaymentRow[] | null },
     db
       .from("orders")
       .select("*, client:clients(id, full_name, phone), order_items(id)")
@@ -927,7 +958,9 @@ export async function getCashRegister(
   // qu'un embed imbrique dont le typage est fragile.
   const orderIds = [
     ...new Set(
-      payments.map((p) => p.order_id).filter((id): id is string => Boolean(id)),
+      payments
+        .map((p: PaymentRow) => p.order_id)
+        .filter((id: string | null): id is string => Boolean(id)),
     ),
   ];
   const labels = new Map<
@@ -977,12 +1010,15 @@ export async function getCashRegister(
   });
 
   return {
-    collectedToday: payments.reduce((sum, payment) => sum + payment.amount, 0),
+    collectedToday: payments.reduce(
+      (sum: number, payment: PaymentRow) => sum + payment.amount,
+      0,
+    ),
     paymentsCount: payments.length,
     byMethod: [...byMethodMap.entries()]
       .map(([method, value]) => ({ method, ...value }))
       .sort((a, b) => b.total - a.total),
-    recent: payments.map((payment) => ({
+    recent: payments.map((payment: PaymentRow) => ({
       ...payment,
       order_number: labels.get(payment.order_id ?? "")?.order_number ?? null,
       client_name: labels.get(payment.order_id ?? "")?.client_name ?? null,
@@ -1104,7 +1140,9 @@ export async function getDeliveryBoard(
   const missions = missionsRes.data ?? [];
 
   // Numero de commande et client des missions, resolus en une requete.
-  const orderIds = [...new Set(missions.map((mission) => mission.order_id))];
+  const orderIds = [
+    ...new Set(missions.map((mission: DeliveryRow) => mission.order_id)),
+  ];
   const labels = new Map<
     string,
     { order_number: string; client_name: string | null }
@@ -1134,7 +1172,7 @@ export async function getDeliveryBoard(
   return {
     toDeliver,
     toCollect,
-    missions: missions.map((mission) => ({
+    missions: missions.map((mission: DeliveryRow) => ({
       ...mission,
       order_number: labels.get(mission.order_id)?.order_number ?? null,
       client_name: labels.get(mission.order_id)?.client_name ?? null,
@@ -1225,7 +1263,7 @@ export async function getReports(pressingId: string): Promise<ReportData> {
     .limit(REPORT_ORDER_LIMIT);
 
   const orders = orderRows ?? [];
-  const orderIds = orders.map((order) => order.id);
+  const orderIds = orders.map((order: OrderRow) => order.id);
 
   let items: {
     order_id: string;
@@ -1247,11 +1285,14 @@ export async function getReports(pressingId: string): Promise<ReportData> {
     .eq("pressing_id", pressingId)
     .limit(500);
 
-  const clientNames = new Map(
-    (clientRows ?? []).map((client) => [client.id, client.full_name]),
+  const clientNames = new Map<string, string>(
+    (clientRows ?? []).map((client: Pick<ClientRow, "id" | "full_name">) => [
+      client.id,
+      client.full_name,
+    ]),
   );
   const billable = orders.filter(
-    (order) => order.status !== ORDER_STATUS.CANCELLED,
+    (order: OrderRow) => order.status !== ORDER_STATUS.CANCELLED,
   );
 
   // -- Serie journaliere ---------------------------------------------------
@@ -1289,7 +1330,7 @@ export async function getReports(pressingId: string): Promise<ReportData> {
   const statusCounts = new Map<OrderStatus, number>();
   const clientTotals = new Map<string, { revenue: number; orders: number }>();
 
-  const billableIds = new Set(billable.map((order) => order.id));
+  const billableIds = new Set(billable.map((order: OrderRow) => order.id));
 
   for (const order of orders) {
     const day = dayIndex.get(localDayKey(new Date(order.created_at)));
@@ -1326,7 +1367,6 @@ export async function getReports(pressingId: string): Promise<ReportData> {
     clientEntry.orders += 1;
     clientTotals.set(order.client_id, clientEntry);
   }
-
   // Les articles ne sont comptes que sur les commandes facturables : une
   // commande annulee ne doit pas gonfler le classement des articles lavees.
   const articleTotals = new Map<
@@ -1381,6 +1421,8 @@ export interface NotificationCounts {
   sent: number;
   /** Echecs a relancer manuellement. */
   failed: number;
+  /** Annulées avant envoi. */
+  cancelled: number;
 }
 
 /** Ligne du journal d'envoi, avec les champs reellement affiches. */
@@ -1396,6 +1438,7 @@ export type NotificationLogEntry = Pick<
   | "error_message"
   | "retries"
   | "created_at"
+  | "attempted_at"
 >;
 
 /** Volume du journal affiche : la liste est triee, pas paginee. */
@@ -1420,11 +1463,17 @@ export async function getNotificationCounts(
     .eq("pressing_id", pressingId)
     .limit(NOTIFICATION_LOG_LIMIT * 4);
 
-  const counts: NotificationCounts = { queued: 0, sent: 0, failed: 0 };
+  const counts: NotificationCounts = {
+    queued: 0,
+    sent: 0,
+    failed: 0,
+    cancelled: 0,
+  };
 
   for (const row of data ?? []) {
     if (row.status === "sent") counts.sent += 1;
     else if (row.status === "failed") counts.failed += 1;
+    else if (row.status === "cancelled") counts.cancelled += 1;
     else if (row.status === "queued" || row.status === "sending")
       counts.queued += 1;
   }
@@ -1448,7 +1497,7 @@ export async function getNotifications(
   const { data } = await db
     .from("notifications")
     .select(
-      "id, order_id, channel, event, recipient, message, status, error_message, retries, created_at",
+      "id, order_id, channel, event, recipient, message, status, error_message, retries, created_at, attempted_at",
     )
     .eq("pressing_id", pressingId)
     .order("created_at", { ascending: false })

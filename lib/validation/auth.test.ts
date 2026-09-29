@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  describeExistingAccount,
+  isFreshAccount,
   loginSchema,
   registerSchema,
   resetPasswordSchema,
@@ -158,8 +160,8 @@ describe("registerSchema", () => {
 
 describe("resetPasswordSchema", () => {
   it("accepte un nouveau mot de passe sans l'ancien", () => {
-    // L'ecran desktop `/auth/reset-password` ne demande pas l'ancien mot de
-    // passe : l'exiger dans le schema le rendrait inutilisable.
+    // Le schema doit rester utilisable sans l'ancien mot de passe : l'action
+    // ne le controle que lorsqu'il est fourni.
     const result = resetPasswordSchema.safeParse({
       password: VALID_PASSWORD,
       confirmPassword: VALID_PASSWORD,
@@ -205,5 +207,137 @@ describe("forgotPasswordSchema", () => {
     expect(
       forgotPasswordSchema.safeParse({ email: "gerant@pressing.ci" }).success,
     ).toBe(true);
+  });
+});
+
+/*
+ * Ces tests couvrent le cas qui a produit le piege rapporte : un gerant ayant
+ * deja configure son pressing qui s'inscrit avec une autre adresse, et decouvre
+ * a l'ecran d'onboarding qu'il tourne en rond. Le message doit donc designer la
+ * sortie (se connecter) — c'est ce que verifie « propose de se connecter ».
+ */
+describe("describeExistingAccount", () => {
+  it("laisse passer un email et un numero libres", () => {
+    const result = describeExistingAccount({
+      emailTaken: false,
+      phoneTaken: false,
+      hasPressing: false,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.fieldErrors).toBeUndefined();
+  });
+
+  it("refuse un email deja pris et pointe le champ", () => {
+    const result = describeExistingAccount({
+      emailTaken: true,
+      phoneTaken: false,
+      hasPressing: false,
+    });
+    expect(result.error).toMatch(/existe déjà/i);
+    expect(result.fieldErrors?.email).toBeTruthy();
+    expect(result.fieldErrors?.phone).toBeUndefined();
+  });
+
+  it("refuse un numero deja pris et pointe le champ", () => {
+    const result = describeExistingAccount({
+      emailTaken: false,
+      phoneTaken: true,
+      hasPressing: false,
+    });
+    expect(result.error).toMatch(/existe déjà/i);
+    expect(result.fieldErrors?.phone).toBeTruthy();
+    expect(result.fieldErrors?.email).toBeUndefined();
+  });
+
+  it("pointe les deux champs quand les deux sont pris", () => {
+    const result = describeExistingAccount({
+      emailTaken: true,
+      phoneTaken: true,
+      hasPressing: false,
+    });
+    expect(result.fieldErrors?.email).toBeTruthy();
+    expect(result.fieldErrors?.phone).toBeTruthy();
+  });
+
+  /*
+   * Le cas central. Un pressing existe deja sur ce numero : l'utilisateur a
+   * donc DEJA fait l'onboarding ailleurs. Insister sur « connectez-vous »
+   * plutot que sur « numero invalide » est ce qui lui evite de recommencer un
+   * parcours de trois etapes pour rien.
+   */
+  it("propose de se connecter quand un pressing est deja rattache", () => {
+    const result = describeExistingAccount({
+      emailTaken: true,
+      phoneTaken: true,
+      hasPressing: true,
+    });
+    expect(result.error).toMatch(/pressing/i);
+    expect(result.error).toMatch(/connectez-vous/i);
+  });
+
+  it("l'emporte sur le doublon simple quand un pressing existe", () => {
+    // Meme avec l'email libre, le pressing doit primer : c'est l'information
+    // la plus utile, celle qui evite l'onboarding inutile.
+    const result = describeExistingAccount({
+      emailTaken: false,
+      phoneTaken: true,
+      hasPressing: true,
+    });
+    expect(result.error).toMatch(/pressing/i);
+  });
+
+  /*
+   * Non-revelation : le message ne doit nommer NI le compte NI son pressing.
+   * Sans cette garantie, la fonction deviendrait un oracle d'enumeration des
+   * gerants inscrits, utilisable depuis le formulaire public.
+   */
+  it("ne nomme jamais le compte existant", () => {
+    for (const probe of [
+      { emailTaken: true, phoneTaken: false, hasPressing: false },
+      { emailTaken: false, phoneTaken: true, hasPressing: true },
+      { emailTaken: true, phoneTaken: true, hasPressing: true },
+    ]) {
+      const { error } = describeExistingAccount(probe);
+      expect(error).not.toMatch(/@/);
+      expect(error).not.toMatch(/\+225/);
+    }
+  });
+});
+
+/*
+ * Le second piege : un compte qui revient sans pressing et sans comprendre
+ * pourquoi. Ces tests fixent la.frontiere entre « inscription en cours » et
+ * « blocage » — isFresh ne doit pas harceler, ni manquer un blocage.
+ */
+describe("isFreshAccount", () => {
+  const NOW = Date.parse("2026-09-28T12:00:00Z");
+  const minutesAgo = (n: number) =>
+    new Date(NOW - n * 60_000).toISOString();
+
+  it("considere comme fraiche une inscription de l'instant", () => {
+    expect(isFreshAccount(minutesAgo(0), NOW)).toBe(true);
+  });
+
+  it("considere comme fraiche un compte de 30 minutes", () => {
+    expect(isFreshAccount(minutesAgo(30), NOW)).toBe(true);
+  });
+
+  it("considere comme ancien un compte de 2 heures", () => {
+    expect(isFreshAccount(minutesAgo(120), NOW)).toBe(false);
+  });
+
+  it("considere comme ancien un compte de plusieurs jours", () => {
+    expect(isFreshAccount(minutesAgo(60 * 24 * 3), NOW)).toBe(false);
+  });
+
+  it("ne suppose pas le blocage sur une date illisible", () => {
+    expect(isFreshAccount("pas-une-date", NOW)).toBe(true);
+    expect(isFreshAccount("", NOW)).toBe(true);
+  });
+
+  it("ne suppose pas le blocage sur une date dans le futur", () => {
+    // Un decalage d'horloge ne doit pas afficher un avertissement injustifie.
+    const future = new Date(NOW + 60 * 60_000).toISOString();
+    expect(isFreshAccount(future, NOW)).toBe(true);
   });
 });

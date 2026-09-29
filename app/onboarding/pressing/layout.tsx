@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/supabase/queries";
+import { isFreshAccount } from "@/lib/validation/auth";
+import { StuckAccountNotice } from "@/components/onboarding/stuck-account-notice";
 
 /**
  * Garde du parcours d'onboarding gerant.
@@ -10,6 +12,12 @@ import { getContext } from "@/lib/supabase/queries";
  *   - role 'client'       -> /onboarding/client (Etape 3 du contrat)
  *   - pressing deja cree  -> /dashboard, l'onboarding est sans objet
  *   - pas de pressing     -> on laisse passer
+ *
+ * Le dernier cas est nuance : un compte de quelques minutes est une inscription
+ * en cours, et l'utilisateur doit voir le parcours normal. Un compte de plusieurs
+ * jours, en revanche, est le piege decrit dans `StuckAccountNotice` — on lui
+ * montre alors un avertissement AVANT les etapes, plutot que de le laisser
+ * remplir trois formulaires pour decouvrir qu'il tourne en rond.
  */
 export default async function OnboardingLayout({
   children,
@@ -31,6 +39,13 @@ export default async function OnboardingLayout({
     redirect("/dashboard");
   }
 
+  /*
+   * Un compte ancien sans pressing est un cas a part : soit l'utilisateur a
+   * cree un second compte en croyant recommencer, soit il a perdu l'accès au
+   * premier. Dans les deux cas, commencer les etapes n'est pas la reponse.
+   */
+  const looksStuck = !isFreshAccount(profile?.createdAt ?? "");
+
   return (
     <div className="flex min-h-dvh flex-col bg-slate-100">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
@@ -48,7 +63,10 @@ export default async function OnboardingLayout({
         <p className="text-xs text-slate-500">Configuration de votre pressing</p>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+        {looksStuck ? <StuckAccountNotice /> : null}
+        {children}
+      </main>
     </div>
   );
 }

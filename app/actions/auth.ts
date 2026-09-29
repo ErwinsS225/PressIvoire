@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeIvorianPhone, safeRedirectPath } from "@/lib/utils";
 import {
+  describeExistingAccount,
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
@@ -47,6 +48,17 @@ const ERROR_MESSAGES: Record<string, string> = {
   "Invalid login credentials": "Email, téléphone ou mot de passe incorrect.",
   "Email not confirmed": "Confirmez votre email avant de vous connecter.",
   "User already registered": "Un compte existe déjà avec cet email.",
+  /*
+   * Refus du trigger de doublons (migration 009).
+   *
+   * Il ne se produit QUE si `account_exists()` a repondu « rien » puis qu'une
+   * autre inscription a occupe le numero entre-temps — deux inscriptions
+   * simultanees. Le message est donc identique a celui du formulaire, et
+   * surtout propose la meme sortie : sans cela, l'utilisateur se retrouverait
+   * devant un message de base technique, le meme piege qui l'amenait ici.
+   */
+  "Ce numero de telephone est deja rattache a un compte.":
+    "Ce numéro de téléphone est déjà rattaché à un compte. Connectez-vous, ou utilisez un autre numéro.",
   "Password should be at least":
     "Mot de passe trop court (8 caractères et 1 chiffre minimum).",
   "New password should be different":
@@ -203,6 +215,43 @@ export async function signUp(
   const values: RegisterValues = parsed.data;
   const supabase = createClient();
 
+  /*
+   * Detection d'un compte deja existant, AVANT de creer quoi que ce soit.
+   *
+   * `signUp()` cree un compte Auth puis, via le trigger de la migration 002,
+   * un profil. A ce stade il est trop tard : le doublon existe deja, et
+   * l'utilisateur ne le decouvrira qu'a l'ecran d'onboarding, sans comprendre
+   * pourquoi. On interroge donc la base d'abord.
+   *
+   * ⚠ Un echec de ce controle ne doit PAS bloquer l'inscription : si la
+   * fonction est indisponible (migration 009 pas encore appliquee, reseau),
+   * on continue comme avant. La migration 009 pose de toute facon la garde
+   * definitive cote base — celle-ci n'est qu'un message clair, pas une
+   * securite. Refuser de s'inscrire parce qu'un diagnostic a echoue serait
+   * transformer un inconfort en indisponibilite.
+   */
+  const { data: probe, error: probeError } = await supabase.rpc(
+    "account_exists",
+    { p_email: values.email, p_phone: values.phone } as never,
+  );
+
+  if (!probeError && Array.isArray(probe) && probe[0]) {
+    const row = probe[0] as unknown as {
+      email_taken: boolean;
+      phone_taken: boolean;
+      has_pressing: boolean;
+    };
+    const known = describeExistingAccount({
+      emailTaken: row.email_taken,
+      phoneTaken: row.phone_taken,
+      hasPressing: row.has_pressing,
+    });
+
+    if (known.error) {
+      return { error: known.error, fieldErrors: known.fieldErrors };
+    }
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email: values.email,
     password: values.password,
@@ -255,8 +304,10 @@ export async function requestPasswordReset(
   const { error } = await supabase.auth.resetPasswordForEmail(
     parsed.data.email,
     {
-      // Le lien ouvre `/auth/reset-password`, qui est une page dediee a la
-      // reinitialisation.
+      // Le lien de l'email ouvre `/auth/reset-password` : c'est une Route
+      // Handler, seule able d'ecrire les cookies de session hors Server Action.
+      // Elle echange le code PKCE puis redirige vers l'ecran de saisie du
+      // nouveau mot de passe.
       redirectTo: `${getAppUrl()}/auth/reset-password`,
     },
   );
@@ -294,10 +345,10 @@ export async function updatePassword(
   /*
    * Verification du mot de passe actuel, lorsqu'il est fourni.
    *
-   * L'ecran mobile (`/(auth)/reset-password`) le demande ; l'ecran desktop
-   * (`/auth/reset-password`) ne le demande pas. On applique donc le controle
-   * dans la mesure ou l'information est disponible, sans rendre le second
-   * ecran inutilisable.
+   * L'ecran de reinitialisation (`/(auth)/reset-password`) le demande. Le
+   * schema le laisse toutefois facultatif : on applique donc le controle dans
+   * la mesure ou l'information est disponible, sans rendre l'action
+   * inutilisable depuis un appel qui ne le fournirait pas.
    *
    * Rappel de la raison : un lien de reinitialisation transite par la boite
    * mail, qui n'est pas un canal sur. Exiger le mot de passe actuel — quand on
