@@ -198,6 +198,17 @@ infinie.
 ne doit pas voir un bouton « Modifier » qui échouerait avec un message RLS
 incompréhensible. La base reste l'autorité.
 
+Le même doublon existe **côté écriture**, dans `lib/guards.ts` : chaque Server
+Action commence par `requireStaff()` (tout le personnel) ou `requireAdmin()`
+(gérant et responsable) et renvoie un refus rédigé en français. Une Server
+Action est un point d'entrée HTTP public, appelable sans passer par
+l'interface : sans ce contrôle, un caissier qui forcerait le formulaire du
+catalogue recevrait `new row violates row-level security policy`.
+
+Le masquage suit la même logique écran par écran : un caissier voit le
+formulaire d'article en lecture seule, un compte hors personnel voit les
+actions d'une commande en lecture seule.
+
 ---
 
 ## Base de données
@@ -233,8 +244,8 @@ Deux décisions qui comptent :
 ## Tests
 
 ```bash
-npm test                  # 97 tests
-npm run test:coverage     # 87,5 % des lignes de lib
+npm test                  # 124 tests
+npm run test:coverage     # 65 % des lignes de lib
 ```
 
 Les tests ciblent `lib/**` : la logique métier pure, celle qu'aucun test
@@ -248,6 +259,7 @@ testé — le rendu est vérifié à l'œil, le typage par le compilateur.
 | `lib/validation/catalogue.test.ts` | Contraintes CHECK de la table `articles`, coercition des formulaires |
 | `lib/validation/onboarding.test.ts` | Cohérence horaires/frais/article, bornes de délai et de prix |
 | `lib/constants.test.ts` | Gardes de statut, libellés, permissions par rôle |
+| `lib/guards.test.ts` | `requireStaff` / `requireAdmin` : qui passe, et quel message reçoit celui qui ne passe pas |
 
 La CI (`.github/workflows/ci.yml`) enchaîne `test` → `lint` → `type-check`
 → `build`, dans cet ordre : un test casse plus tôt et avec un message plus
@@ -295,11 +307,8 @@ Ce qui reste réellement à faire, par ordre de valeur :
    entièrement manuelle.
 2. **Notifications SMS** — avec le webhook CinetPay, l'état de la commande
    peut être poussé au client sans qu'il ait à ouvrir l'application.
-3. **Rôles dans les tableaux et formulaires** — les gardes `isAdminRole`
-   existent et sont testées, mais le masquage fin des actions n'est appliqué
-   qu'à l'écran catalogue.
-4. **Tests de rendu** — @testing-library, si le besoin s'en fait sentir. À
+3. **Tests de rendu** — @testing-library, si le besoin s'en fait sentir. À
    ce jour le typecheck et la revue visuelle suffisent.
-5. **Vues SQL pour les agrégats** — les rapports calculent en JavaScript
+4. **Vues SQL pour les agrégats** — les rapports calculent en JavaScript
    avec un plafond de lignes. Correct à l'échelle d'un pressing ; à auditer
    au-delà de quelques milliers de commandes par an.

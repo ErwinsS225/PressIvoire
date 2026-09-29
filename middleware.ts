@@ -25,6 +25,19 @@ const PUBLIC_PATHS = [
 ];
 
 /**
+ * Ecrans qui renvoient un utilisateur DEJA connecte vers l'application.
+ *
+ * `/reset-password` n'y figure volontairement PAS. Le lien de reinitialisation
+ * recu par email ouvre une session de type « recovery » : au moment precis ou
+ * l'utilisateur arrive sur cet ecran, il est donc connecte. Le renvoyer vers
+ * `/dashboard` — comme le ferait un ecran « reserve aux visiteurs » — rendrait
+ * le changement de mot de passe impossible. Les autres ecrans (connexion,
+ * inscription, mot de passe oublie) n'ont en revanche aucun sens pour
+ * quelqu'un qui a deja une session.
+ */
+const GUEST_ONLY_PATHS = ["/login", "/register", "/forgot-password"];
+
+/**
  * Prefixes accessibles sans session.
  *
  * `/auth` : point d'atterrissage des liens de confirmation d'email et de
@@ -88,8 +101,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Session presente + ecran de connexion -> directement dans l'application.
-  if (user && PUBLIC_PATHS.includes(pathname)) {
+  // Session presente + ecran reserve aux visiteurs -> directement dans
+  // l'application. `/reset-password` est exclu : il exige une session de
+  // recovery (voir GUEST_ONLY_PATHS).
+  if (user && GUEST_ONLY_PATHS.includes(pathname)) {
     const appUrl = request.nextUrl.clone();
     appUrl.pathname = "/dashboard";
     appUrl.search = "";

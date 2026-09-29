@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 
+import { toast } from "sonner";
 import {
     ArrowDownToLineIcon,
     FileJsonIcon,
@@ -36,6 +38,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { exportChartPng, exportRevenueCsv, revenueFileBase } from "@/lib/chart-export";
 import { formatFCFA } from "@/lib/utils";
 
 interface RevenueChartProps {
@@ -49,7 +52,10 @@ interface RevenueChartProps {
 const chartConfig: ChartConfig = {
     revenue: {
         label: "Revenus",
-        color: "var(--chart-1)",
+        // Les variables `--chart-N` sont déclarées en HSL brut (« 221 83% 53% ») :
+        // sans le wrapper `hsl()`, la couleur résolue est invalide et recharts
+        // retomberait sur du noir. Même motif que `hsl(var(--primary))` ailleurs.
+        color: "hsl(var(--chart-1))",
     },
 };
 
@@ -65,10 +71,32 @@ export function RevenueChart({ data, revenue, ordersCount }: RevenueChartProps) 
 
     const averageOrder = ordersCount > 0 ? Math.round(revenue.total / ordersCount) : 0;
 
+    /** Conteneur du graphique — source du SVG à rasteriser pour l'export PNG. */
+    const chartRef = useRef<HTMLDivElement>(null);
+
     const handleRefresh = () => {
         // Re-fetch serveur : la page est un Server Component, refresh()
         // re-exécute getDashboardData() sans recharger la page.
         router.refresh();
+    };
+
+    const handleDownloadPng = async () => {
+        if (!chartRef.current) return;
+        try {
+            await exportChartPng(chartRef.current, `${revenueFileBase()}.png`);
+            toast.success("Graphique exporté en PNG");
+        } catch {
+            toast.error("Impossible d'exporter le graphique en PNG");
+        }
+    };
+
+    const handleDownloadCsv = () => {
+        try {
+            exportRevenueCsv(data, `${revenueFileBase()}.csv`);
+            toast.success("Données exportées en CSV");
+        } catch {
+            toast.error("Impossible d'exporter les données en CSV");
+        }
     };
 
     return (
@@ -88,7 +116,12 @@ export function RevenueChart({ data, revenue, ordersCount }: RevenueChartProps) 
                     >
                         <RefreshCwIcon />
                     </Button>
-                    <Button variant="outline" size="icon-sm" aria-label="Télécharger">
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Télécharger le graphique en PNG"
+                        onClick={handleDownloadPng}
+                    >
                         <ArrowDownToLineIcon />
                     </Button>
                     <DropdownMenu>
@@ -110,11 +143,11 @@ export function RevenueChart({ data, revenue, ordersCount }: RevenueChartProps) 
                                     <span>Actualiser les données</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDownloadPng}>
                                     <ArrowDownToLineIcon />
                                     <span>Exporter en PNG</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDownloadCsv}>
                                     <FileJsonIcon />
                                     <span>Exporter en CSV</span>
                                 </DropdownMenuItem>
@@ -163,7 +196,11 @@ export function RevenueChart({ data, revenue, ordersCount }: RevenueChartProps) 
                 </div>
             </CardHeader>
             <CardContent className="pl-2 pt-4 sm:pl-6">
-                <ChartContainer config={chartConfig} className="aspect-auto h-[260px] w-full">
+                <ChartContainer
+                    ref={chartRef}
+                    config={chartConfig}
+                    className="aspect-auto h-[260px] w-full"
+                >
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data}>
                             <CartesianGrid vertical={false} />

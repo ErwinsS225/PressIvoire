@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/supabase/queries";
 import { isFreshAccount } from "@/lib/validation/auth";
+import { resolveDestination } from "@/lib/routing";
 import { StuckAccountNotice } from "@/components/onboarding/stuck-account-notice";
 
 /**
@@ -26,17 +27,24 @@ export default async function OnboardingLayout({
 }) {
   const { userId, pressing, profile } = await getContext();
 
-  // L'onboarding est reserve a un vrai compte connecte de role 'owner'.
-  if (!userId) {
-    redirect("/login");
-  }
+  /*
+   * Une seule regle de routage pour toute l'application (lib/routing.ts).
+   *
+   * On ne compare plus le role « a la main » : c'est exactement ce calcul qui
+   * avait diverge, un gerant se retrouvant sur l'ecran client parce qu'un
+   * profil illisible avait valeur `client` par defaut. La fonction centrale
+   * applique le meme ordre de tests partout.
+   */
+  const destination = resolveDestination({
+    userId,
+    role: profile?.role ?? null,
+    hasPressing: pressing !== null,
+  });
 
-  if (profile?.role === "client") {
-    redirect("/onboarding/client");
-  }
-
-  if (pressing) {
-    redirect("/dashboard");
+  // Sortie du parcours : on redirige vers l'ecran calcule. On compare a la
+  // destination courante pour ne jamais boucler sur soi-meme.
+  if (destination !== "/onboarding/pressing") {
+    redirect(destination);
   }
 
   /*

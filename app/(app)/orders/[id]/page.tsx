@@ -24,6 +24,7 @@ import {
 import { OrderActions } from "@/components/orders/order-actions";
 import { getContext, getOrderDetail } from "@/lib/supabase/queries";
 import {
+  isStaffRole,
   ORDER_STATUS_LABELS,
   WASH_TYPE_LABELS,
   toOrderStatus,
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 }
 
 export default async function OrderDetailPage({ params }: { params: { id: string } }) {
-  const { pressing } = await getContext();
+  const { pressing, profile } = await getContext();
   const order = await getOrderDetail(params.id);
 
   // Le pressing est verifie explicitement : une commande d'un autre pressing
@@ -196,6 +197,9 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         </div>
       </section>
 
+      {/* `canManage` : pendant visuel de `requireStaff()`. Un compte qui n'est
+          pas du personnel (role `client`) voit la commande en lecture seule
+          plutot que des boutons qui echoueraient. */}
       <OrderActions
         orderId={order.id}
         pressingId={pressing.id}
@@ -203,6 +207,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         total={order.total}
         amountPaid={order.amount_paid}
         currency="FCFA"
+        canManage={isStaffRole(profile?.role)}
       />
     </div>
   );

@@ -24,6 +24,26 @@ import {
  * que se trouve la regle metier, pas dans les boutons.
  */
 
+/**
+ * Un article en cours de saisie.
+ *
+ * `clientId` n'existe que le temps du parcours : il donne a React une cle
+ * stable pour la ligne. Sans elle, la cle de rendu derivait du contenu de
+ * l'article, et le champ de saisie se demonte — donc remonte — a chaque
+ * frappe, ce qui fait perdre le focus en plein milieu de la saisie.
+ *
+ * Le champ est IGNORE a l'ecriture : `completeOnboarding` ne transmet que les
+ * colonnes de `articles`, et Zod retire les cles inconnues a la validation.
+ */
+export type CatalogDraft = CatalogArticle & { clientId: string };
+
+/** Identifiant unique et stable pour une ligne du catalogue. */
+let draftSeq = 0;
+function nextDraftId(): string {
+  draftSeq += 1;
+  return `draft-${Date.now().toString(36)}-${draftSeq}`;
+}
+
 export interface OnboardingState {
   step1: {
     name: string;
@@ -45,7 +65,7 @@ export interface OnboardingState {
       repassage_seul: number;
       detachage: number;
     };
-    articles: CatalogArticle[];
+    articles: CatalogDraft[];
   };
   step3: {
     plan: PlanId;
@@ -57,6 +77,15 @@ export interface OnboardingState {
   setStep3: (values: Partial<OnboardingState["step3"]>) => void;
   /** Pre-remplit le catalogue depuis le catalogue type de la base. */
   loadReferenceArticles: (articles: CatalogArticle[]) => void;
+  /**
+   * Ajoute une ligne vide et renvoie son identifiant, pour que l'appelant
+   * puisse la cibler (focus, suppression) sans connaitre l'index.
+   */
+  addArticle: () => string;
+  /** Met a jour une ligne a partir de son identifiant. */
+  updateArticle: (clientId: string, patch: Partial<CatalogArticle>) => void;
+  /** Supprime une ligne. Renvoie `false` si l'identifiant est inconnu. */
+  removeArticle: (clientId: string) => boolean;
   reset: () => void;
 }
 
@@ -84,7 +113,7 @@ const initialState = {
     deliveryFee: 1000,
     deliveryFeesByCommune: { Cocody: 1000, Yopougon: 1500, Marcory: 1000 },
     defaultDelaysByWash: { eau: 24, sec: 48, repassage_seul: 4, detachage: 72 },
-    articles: [] as CatalogArticle[],
+    articles: [] as CatalogDraft[],
   },
   step3: {
     plan: "free" as PlanId,
@@ -108,8 +137,83 @@ export const useOnboardingStore = create<OnboardingState>()(
         set((state) =>
           // On ne remplace le catalogue que s'il est encore vide : sinon on
           // ecraserait les prix deja personnalises au retour en arriere.
-          state.step2.articles.length === 0 ? { step2: { ...state.step2, articles } } : state,
+          state.step2.articles.length === 0
+            ? {
+                step2: {
+                  ...state.step2,
+                  articles: articles.map((article) => ({
+                    ...article,
+                    clientId: nextDraftId(),
+                  })),
+                },
+              }
+            : state,
         ),
+
+      /*
+       * CRUD du catalogue.
+       *
+       * Les trois operations ciblent une ligne par son `clientId`, jamais par
+       * son index : l'index depend de l'ordre d'affichage, qui change des que
+       * l'on filtre par type de lavage. Cibler l'index revenait a modifier
+       * la mauvaise ligne — la bonne operation sur la mauvaise.
+       */
+      addArticle: () => {
+        const clientId = nextDraftId();
+        set((state) => {
+          const last = state.step2.articles.at(-1);
+          return {
+            step2: {
+              ...state.step2,
+              articles: [
+                ...state.step2.articles,
+                {
+                  clientId,
+                  name: "",
+                  category: "habit",
+                  washType: "eau",
+                  price: 1000,
+                  estimatedHours: 24,
+                  // On repart apres le dernier `sortOrder` : l'ordre de
+                  // saisie reste celui du catalogue propose.
+                  sortOrder: (last?.sortOrder ?? 0) + 10,
+                  // ACTIVE, et non inactif : une ligne ajoutee puis invisible
+                  // donne l'impression que le bouton n'a rien fait. Elle est
+                  // desactivee explicitement si l'user ne la veut pas.
+                  isActive: true,
+                },
+              ],
+            },
+          };
+        });
+        return clientId;
+      },
+
+      updateArticle: (clientId, patch) =>
+        set((state) => {
+          const index = state.step2.articles.findIndex(
+            (article) => article.clientId === clientId,
+          );
+          if (index === -1) return state;
+
+          const articles = [...state.step2.articles];
+          articles[index] = { ...articles[index], ...patch };
+          return { step2: { ...state.step2, articles } };
+        }),
+
+      removeArticle: (clientId) => {
+        let removed = false;
+        set((state) => {
+          const articles = state.step2.articles.filter(
+            (article) => article.clientId !== clientId,
+          );
+          removed = articles.length !== state.step2.articles.length;
+          return removed
+            ? { step2: { ...state.step2, articles } }
+            : state;
+        });
+        return removed;
+      },
 
       reset: () => set(initialState),
     }),

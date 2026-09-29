@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { type OrderStatus } from "@/lib/constants";
 import {
@@ -32,9 +33,11 @@ export default async function DashboardPage() {
         title="Tableau de bord"
         subtitle={`Bonjour ${firstName}, bienvenue sur votre espace de gestion.`}
       >
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nouvelle Commande
+        <Button asChild>
+          <Link href="/orders/new">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nouvelle Commande
+          </Link>
         </Button>
       </Header>
 

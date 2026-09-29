@@ -62,11 +62,19 @@ function Field({
  */
 export function ArticleForm({
     article,
-    canDelete = true,
+    canEdit = true,
 }: {
     /** Absent = creation. */
     article?: ArticleRow;
-    canDelete?: boolean;
+    /**
+     * L'utilisateur peut-il enregistrer ?
+     *
+     * `false` pour un caissier : la policy « articles: modification par l'admin
+     * du pressing » lui refuse l'ecriture. Les champs sont alors desactives et
+     * les boutons d'action masques — la CREATION, elle, reste ouverte a tout le
+     * personnel. C'est le pendant visuel de `requireAdmin()` (lib/guards.ts).
+     */
+    canEdit?: boolean;
 }) {
     const router = useRouter();
     const isEdit = Boolean(article);
@@ -88,6 +96,9 @@ export function ArticleForm({
 
     function handleSubmit(event: React.FormEvent) {
         event.preventDefault();
+        // Double garde : les boutons sont masques, mais le formulaire peut
+        // encore etre soumis au clavier (Entree depuis un champ).
+        if (!canEdit) return;
         setErrors({});
 
         const parsed = articleFormSchema.safeParse({
@@ -125,7 +136,7 @@ export function ArticleForm({
     }
 
     function handleToggle() {
-        if (!article) return;
+        if (!article || !canEdit) return;
         startTransition(async () => {
             try {
                 await toggleArticle(article.id, !isActive);
@@ -139,7 +150,7 @@ export function ArticleForm({
     }
 
     function handleDelete() {
-        if (!article) return;
+        if (!article || !canEdit) return;
         startTransition(async () => {
             try {
                 await deleteArticle(article.id);
@@ -159,12 +170,25 @@ export function ArticleForm({
         <form onSubmit={handleSubmit} className="max-w-2xl">
             <Card>
                 <CardContent className="grid gap-6 pt-6">
+                    {/*
+                     * Lecture seule : on dit POURQUOI plutot que de laisser des
+                     * champs grises sans explication. Meme formulation que le
+                     * refus renvoye par `requireAdmin()` cote serveur.
+                     */}
+                    {!canEdit ? (
+                        <p className="rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
+                            Seul un gérant ou un responsable peut modifier le
+                            catalogue. Les champs sont affichés en lecture seule.
+                        </p>
+                    ) : null}
+
                     <Field id="name" label="Nom de l'article" error={errors.name}>
                         <Input
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Ex. Chemise en coton"
+                            disabled={!canEdit}
                         />
                     </Field>
 
@@ -174,6 +198,7 @@ export function ArticleForm({
                                 id="category"
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value)}
+                                disabled={!canEdit}
                                 className={selectClass}
                             >
                                 {Object.values(ARTICLE_CATEGORIES).map((value) => (
@@ -189,6 +214,7 @@ export function ArticleForm({
                                 id="washType"
                                 value={washType}
                                 onChange={(e) => setWashType(e.target.value)}
+                                disabled={!canEdit}
                                 className={selectClass}
                             >
                                 {Object.values(WASH_TYPES).map((value) => (
@@ -206,6 +232,7 @@ export function ArticleForm({
                                 min={0}
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
+                                disabled={!canEdit}
                             />
                         </Field>
 
@@ -220,6 +247,7 @@ export function ArticleForm({
                                 min={1}
                                 value={hours}
                                 onChange={(e) => setHours(e.target.value)}
+                                disabled={!canEdit}
                             />
                         </Field>
                     </div>
@@ -231,6 +259,7 @@ export function ArticleForm({
                             rows={3}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
+                            disabled={!canEdit}
                             className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         />
                     </Field>
@@ -240,19 +269,22 @@ export function ArticleForm({
                             type="checkbox"
                             checked={isActive}
                             onChange={(e) => setIsActive(e.target.checked)}
+                            disabled={!canEdit}
                             className="h-4 w-4 rounded border-input"
                         />
                         Article actif (visible à la prise de commande)
                     </label>
 
                     <div className="flex flex-wrap gap-2 border-t pt-6">
-                        <Button type="submit" disabled={isPending}>
-                            {isPending
-                                ? "Enregistrement…"
-                                : isEdit
-                                  ? "Enregistrer les modifications"
-                                  : "Ajouter au catalogue"}
-                        </Button>
+                        {canEdit ? (
+                            <Button type="submit" disabled={isPending}>
+                                {isPending
+                                    ? "Enregistrement…"
+                                    : isEdit
+                                      ? "Enregistrer les modifications"
+                                      : "Ajouter au catalogue"}
+                            </Button>
+                        ) : null}
                         <Button
                             type="button"
                             variant="outline"
@@ -261,7 +293,7 @@ export function ArticleForm({
                             Annuler
                         </Button>
 
-                        {isEdit && (
+                        {isEdit && canEdit ? (
                             <Button
                                 type="button"
                                 variant="ghost"
@@ -270,9 +302,9 @@ export function ArticleForm({
                             >
                                 {isActive ? "Masquer" : "Réactiver"}
                             </Button>
-                        )}
+                        ) : null}
 
-                        {isEdit && canDelete && (
+                        {isEdit && canEdit ? (
                             <Button
                                 type="button"
                                 variant="destructive"
@@ -281,7 +313,7 @@ export function ArticleForm({
                             >
                                 Supprimer
                             </Button>
-                        )}
+                        ) : null}
                     </div>
                 </CardContent>
             </Card>

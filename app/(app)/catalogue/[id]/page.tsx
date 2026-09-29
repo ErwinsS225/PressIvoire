@@ -25,7 +25,14 @@ export default async function EditArticlePage({ params }: { params: { id: string
   const article = await getArticle(params.id);
   if (!article || article.pressing_id !== pressing.id) notFound();
 
-  const canDelete = isAdminRole(profile?.role);
+  /*
+   * L'EDITION est reservee a l'admin du pressing (policy « articles:
+   * modification par l'admin du pressing ») alors que la CREATION est ouverte a
+   * tout le personnel. Un caissier peut donc arriver ici sans avoir le droit
+   * d'enregistrer : le formulaire lui est presente en lecture seule, pour qu'il
+   * ne decouvre pas le refus au moment de valider.
+   */
+  const canEdit = isAdminRole(profile?.role);
 
   return (
     <div className="flex flex-col gap-8">
@@ -37,7 +44,7 @@ export default async function EditArticlePage({ params }: { params: { id: string
           <Link href="/catalogue">Retour au catalogue</Link>
         </Button>
       </Header>
-      <ArticleForm article={article} canDelete={canDelete} />
+      <ArticleForm article={article} canEdit={canEdit} />
     </div>
   );
 }

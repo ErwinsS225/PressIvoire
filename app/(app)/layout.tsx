@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { Sidebar, type Capability } from "@/components/layout/sidebar";
 import {
@@ -5,19 +6,36 @@ import {
     getMonthlyOrderCountForPlan,
 } from "@/lib/subscriptions";
 import { getContext } from "@/lib/supabase/queries";
+import { resolveDestination } from "@/lib/routing";
 
 /**
- * Layout principal de l'application.
+ * Layout principal de l'application — et GARDE UNIQUE de l'espace metier.
  *
  * Bi-modal, sur une seule base de code :
  * - mobile  : barre de navigation basse, contenu pleine largeur ;
- * - desktop : barre latérale fixe, contenu aere.
+ * - desktop : barre laterale fixe, contenu aere.
  *
  * Le meme contenu sert les deux — l'application est concue en desktop, et le
  * responsive se fait par CSS (`md:`), pas par deux applications separees.
  *
+ * ## Pourquoi la garde est ici, et pas dans chaque page
+ *
+ * La destination est decidee par `resolveDestination()` (lib/routing.ts), la
+ * meme fonction que celle utilisee par l'inscription et par les layouts
+ * d'onboarding. Une seule regle, donc un seul comportement.
+ *
+ * Le layout est le bon endroit pour cette porte : il enveloppe TOUTES les
+ * pages de l'application, la ou la verification par page se dupliquait (onze
+ * fois) et laissait passer cinq pages qui n'en avaient aucune — `/orders`,
+ * `/clients`, `/orders/[id]`, `/clients/[id]` et `/catalogue/[id]`. Ces cinq
+ * affichaient « Aucun pressing trouve » au lieu de rediriger, exposant une
+ * interface cassee a un gerant en cours d'inscription.
+ *
+ * Les gardes restantes dans les pages ne sont pas redondants : elles servent
+ * au TypeScript pour retrecir le type de `pressing` a un non-nullable.
+ *
  * Le plan d'abonnement est resolu ICI, cote serveur, puis passe a la
- * sidebar sous forme de capacités. La barre reste ainsi un composant client
+ * sidebar sous forme de capacites. La barre reste ainsi un composant client
  * simple : elle n'a ni session ni base a interroger.
  */
 export default async function AppLayout({
@@ -25,6 +43,27 @@ export default async function AppLayout({
 }: {
     children: React.ReactNode;
 }) {
+    /*
+     * Une seule lecture du contexte pour ce rendu : le layout en a besoin pour
+     * la garde ET pour le compteur de quota. Auparavant `getContext()` etait
+     * rappele deux fois, soit deux allers-retours Supabase en trop.
+     */
+    const appContext = await getContext();
+
+    // Point de routage unique : connexion, onboarding gerant, onboarding
+    // client, ou application. Voir lib/routing.ts.
+    const destination = resolveDestination({
+        userId: appContext.userId,
+        role: appContext.profile?.role ?? null,
+        hasPressing: appContext.pressing !== null,
+    });
+
+    // Sans pressing, aucune page de cet espace n'a de sens : toutes
+    // interrogent un pressing.
+    if (destination !== "/dashboard") {
+        redirect(destination);
+    }
+
     const context = await getEffectivePlan();
 
     const capabilities: Capability[] = [];
@@ -45,11 +84,10 @@ export default async function AppLayout({
      */
     const isFree = context?.plan.id === "free";
     let usedOrders = 0;
-    if (isFree) {
-        const { pressing } = await getContext();
-        if (pressing) {
-            usedOrders = await getMonthlyOrderCountForPlan(pressing.id);
-        }
+    if (isFree && appContext.pressing) {
+        // Le pressing vient de la lecture unique faite plus haut : inutile
+        // d'interroger `getContext()` une seconde fois.
+        usedOrders = await getMonthlyOrderCountForPlan(appContext.pressing.id);
     }
 
     return (

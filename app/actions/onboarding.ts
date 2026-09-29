@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getContext } from "@/lib/supabase/queries";
 import { onboardingPayloadSchema } from "@/lib/validation/onboarding";
 import type { CatalogArticle } from "@/lib/validation/onboarding";
+import type { Json } from "@/lib/supabase/types";
 import { z } from "zod";
 
 /**
@@ -88,41 +89,62 @@ export async function completeOnboarding(
   }
 
   const data = parsed.data;
-  const supabase = createClient();
 
-  // Transformation camelCase -> snake_case attendu par la fonction SQL.
-  const result = await supabase.rpc("complete_onboarding", {
-    payload: {
-      pressing: {
-        name: data.pressing.name,
-        commune: data.pressing.commune,
-        address: data.pressing.address,
-        phone: data.pressing.phone,
-        logo_url: data.pressing.logoUrl,
-        opening_hours: data.pressing.openingHours,
-        pickup_enabled: data.services.pickupEnabled,
-        delivery_enabled: data.services.deliveryEnabled,
-        delivery_fee: data.services.deliveryFee,
-        delivery_fees_by_commune: data.services.deliveryFeesByCommune,
-        default_delays_by_wash: data.services.defaultDelaysByWash,
-      },
-      articles: data.services.articles
-        .filter((article) => article.isActive)
-        .map((article) => ({
-          name: article.name,
-          category: article.category,
-          wash_type: article.washType,
-          price: article.price,
-          estimated_hours: article.estimatedHours,
-          sort_order: article.sortOrder,
-          is_active: true,
-        })),
-      subscription: {
-        plan: data.subscription.plan,
-        trial: data.subscription.trial,
-      },
+  /*
+   * L'appel passe par `db` (type `AppDb`, cf. lib/supabase/queries), et non
+   * par le client brut de `@supabase/ssr` : sur ce dernier, la surcharge
+   * `.rpc()` est resolue avec un `Args` errone (`undefined`), ce qui obligeait
+   * a un double cast. `AppDb.rpc` est type directement contre
+   * `Database["public"]["Functions"]` : l'argument est verifie, plus besoin
+   * de cast sur l'enveloppe.
+   */
+  const { db } = await getContext();
+
+  /*
+   * Transformation camelCase -> snake_case attendu par la fonction SQL.
+   *
+   * La fonction SQL `complete_onboarding(payload jsonb)` attend un unique
+   * parametre NOMME `payload` (cf. migration 003 et types generes) : passer
+   * `p_payload` ferait echouer l'appel PostgREST a l'execution.
+   *
+   * Le payload est declare `Json` directement, sans cast : l'annotation sur le
+   * litteral d'objet suffit. Un cast `as unknown as Json` masquerait une vraie
+   * incompatibilite (une `interface` sans index signature n'est PAS assignable
+   * a `Json`) ; ici, tous les champs sont des litteraux ou des types a index
+   * signature, donc l'assignation est verifiee par le compilateur.
+   */
+  const rpcPayload: Json = {
+    pressing: {
+      name: data.pressing.name,
+      commune: data.pressing.commune,
+      address: data.pressing.address,
+      phone: data.pressing.phone,
+      logo_url: data.pressing.logoUrl,
+      opening_hours: data.pressing.openingHours,
+      pickup_enabled: data.services.pickupEnabled,
+      delivery_enabled: data.services.deliveryEnabled,
+      delivery_fee: data.services.deliveryFee,
+      delivery_fees_by_commune: data.services.deliveryFeesByCommune,
+      default_delays_by_wash: data.services.defaultDelaysByWash,
     },
-  });
+    articles: data.services.articles
+      .filter((article) => article.isActive)
+      .map((article) => ({
+        name: article.name,
+        category: article.category,
+        wash_type: article.washType,
+        price: article.price,
+        estimated_hours: article.estimatedHours,
+        sort_order: article.sortOrder,
+        is_active: true,
+      })),
+    subscription: {
+      plan: data.subscription.plan,
+      trial: data.subscription.trial,
+    },
+  };
+
+  const result = await db.rpc("complete_onboarding", { payload: rpcPayload });
 
   if (result.error) {
     return { error: describePostgrestError(result.error.message) };

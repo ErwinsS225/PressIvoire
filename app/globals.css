@@ -299,35 +299,6 @@
     scrollbar-width: none;
   }
 
-  /* Apparition en cascade : le contenu est masque jusqu'a l'animation */
-  .stagger-1,
-  .stagger-2,
-  .stagger-3,
-  .stagger-4,
-  .stagger-5,
-  .stagger-6 {
-    opacity: 0;
-    animation-fill-mode: forwards;
-  }
-  .stagger-1 {
-    animation-delay: 0.05s;
-  }
-  .stagger-2 {
-    animation-delay: 0.1s;
-  }
-  .stagger-3 {
-    animation-delay: 0.15s;
-  }
-  .stagger-4 {
-    animation-delay: 0.2s;
-  }
-  .stagger-5 {
-    animation-delay: 0.25s;
-  }
-  .stagger-6 {
-    animation-delay: 0.3s;
-  }
-
   /* Elevation douce au survol (cartes, lignes de liste) */
   .card-hover {
     transition:
@@ -361,22 +332,17 @@
   }
 
   /*
-   * Apparition en cascade pour les listes.
+   * Apparition en cascade des listes.
    *
-   * Le delai arrive par la variable CSS `--stagger-delay` (helper
-   * `staggerStyle()` de lib/utils.ts) et l'animation est declaree EN ENTIER
-   * ici. Deux raisons :
-   *   - les classes `stagger-N` doivent etre ecrites en clair dans le source
-   *     pour que Tailwind les conserve, donc `stagger-${index}` n'est pas
-   *     fiable, et le plafond a 6 tronque les listes plus longues ;
-   *   - le raccourci `animation:` de Tailwind reinitialise
-   *     `animation-fill-mode`, donc poser `both` en declaration separee
-   *     dependrait de l'ordre des couches. Ici tout est dans une seule regle.
+   * La regle unique `.stagger-item` est declaree en fin de feuille (bloc
+   * « Animations conservees »). Il y en avait DEUX : celle-ci lisait
+   * `--stagger-delay`, la seconde lisait `--stagger-index`. A specificite
+   * egale, la derniere declaration gagne — celle-ci etait donc toujours
+   * ecrasee, et `staggerStyle()` (lib/utils.ts) posait une variable que
+   * rien ne lisait : la cascade de la landing ne jouait jamais.
+   *
+   * Une seule variable (`--stagger-index`), un seul endroit.
    */
-  .stagger-item {
-    opacity: 0;
-    animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) var(--stagger-delay, 0ms) both;
-  }
 
   /* --- Graphiques --- */
   /* Barre qui pousse depuis la ligne de base du graphique. */
@@ -427,13 +393,7 @@
       animation: none !important;
     }
     .stagger-item,
-    .check-path,
-    .stagger-1,
-    .stagger-2,
-    .stagger-3,
-    .stagger-4,
-    .stagger-5,
-    .stagger-6 {
+    .check-path {
       opacity: 1 !important;
       stroke-dashoffset: 0 !important;
     }
@@ -1013,9 +973,21 @@
  */
 
 /*
- * Les éléments arrivent en cascade via un délai calculé en CSS
- * (`animation-delay: calc(var(--stagger-index) * 60ms)`). Une cascade guide
- * l'œil dans l'ordre de lecture : c'est de l'ergonomie, pas de la décoration.
+ * Elements qui arrivent en cascade (regle UNIQUE `.stagger-item`).
+ *
+ * Le delai est calcule en CSS : `animation-delay: calc(var(--stagger-index, 0)
+ * * 55ms)`. Une cascade guide l'oeil dans l'ordre de lecture : c'est de
+ * l'ergonomie, pas de la decoration.
+ *
+ * `--stagger-index` est un index SANS unite (pas un delai en ms) :
+ *   - soit pose en clair par un composant :
+ *     `style={{ "--stagger-index": n } as React.CSSProperties}`
+ *     (stat-card, revenue-chart, recent-orders) ;
+ *   - soit fourni par `staggerStyle(n)` depuis lib/utils.ts.
+ * Le pas (55 ms) vit ICI, une seule fois.
+ *
+ * `.zoom-card.stagger-item` surcharge `animation-name` / `animation-fill-mode`
+ * (specificite superieure) pour les tuiles KPI, sans toucher au delai.
  */
 .stagger-item {
   animation: rise-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;

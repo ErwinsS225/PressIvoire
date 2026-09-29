@@ -123,26 +123,24 @@ export function isValidIvorianPhone(input: string): boolean {
 /**
  * Delai d'apparition en cascade pour une liste.
  *
- * Renvoie la variable CSS attendue par `.stagger-item` (cf. app/globals.css),
- * a poser dans le `style` de l'element :
+ * Renvoie la variable CSS `--stagger-index` attendue par `.stagger-item`
+ * (cf. app/globals.css — regle unique, en fin de feuille), a poser dans le
+ * `style` de l'element :
  *
  *   <div className="stagger-item" style={staggerStyle(index)} />
  *
- * On passe par une variable CSS plutot que par une classe `stagger-N` :
- * ces classes doivent apparaitre en clair dans le source pour survivre a la
- * purge de Tailwind (donc `stagger-${index}` n'est pas fiable) et sont
- * plafonnees a 6, ce qui tronque les listes plus longues.
+ * La variable est un INDEX sans unite : le pas (55 ms) est applique en CSS,
+ * une seule fois. On passe par une variable plutot que par une classe
+ * `stagger-N` : ces classes doivent apparaitre en clair dans le source pour
+ * survivre a la purge de Tailwind (donc `stagger-${index}` n'est pas fiable)
+ * et sont plafonnees a 6, ce qui tronque les listes plus longues.
  *
- * Le delai est lui-meme plafonne a `maxIndex` pour qu'une liste de 80 clients
+ * L'index est lui-meme plafonne a `maxIndex` pour qu'une liste de 80 clients
  * n'impose pas 4 secondes d'attente avant l'affichage du dernier.
  */
-export function staggerStyle(
-  index: number,
-  step = 45,
-  maxIndex = 12,
-): CSSProperties {
+export function staggerStyle(index: number, maxIndex = 12): CSSProperties {
   return {
-    "--stagger-delay": `${Math.min(Math.max(index, 0), maxIndex) * step}ms`,
+    "--stagger-index": Math.min(Math.max(index, 0), maxIndex),
   } as CSSProperties;
 }
 

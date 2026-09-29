@@ -8,7 +8,7 @@ import { Avatar } from "@/components/ui/avatar-initials";
 import { ProgressSteps } from "@/components/ui/progress-steps";
 import { EmptyState } from "@/components/ui/empty-state";
 import { WASH_TYPE_LABELS, type WashType } from "@/lib/constants";
-import { cn, formatAmount } from "@/lib/utils";
+import { cn, formatAmount, staggerStyle } from "@/lib/utils";
 
 type Article = {
   id: string;
@@ -140,12 +140,12 @@ export function NewOrderFlow({
                   key={candidate.id}
                   type="button"
                   onClick={() => setClientId(candidate.id)}
+                  style={staggerStyle(index)}
                   className={cn(
-                    "card-hover flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
+                    "stagger-item card-hover flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
                     candidate.id === clientId
                       ? "border-2 border-orange-500 bg-orange-50/40"
                       : "border-slate-100 bg-white",
-                    `animate-slide-up stagger-${Math.min(index + 1, 6)}`,
                   )}
                 >
                   <Avatar name={candidate.full_name} size="sm" />
@@ -221,10 +221,10 @@ export function NewOrderFlow({
                 return (
                   <div
                     key={article.id}
+                    style={staggerStyle(index)}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl bg-white p-3",
+                      "stagger-item flex items-center gap-3 rounded-xl bg-white p-3",
                       quantity > 0 ? "border-2 border-orange-500" : "border border-slate-100",
-                      `animate-slide-up stagger-${Math.min(index + 1, 6)}`,
                     )}
                   >
                     <div
@@ -456,10 +456,16 @@ function SuccessPanel({ orderId }: { orderId: string }) {
           </div>
         </div>
 
-        <h1 className="animate-slide-up stagger-3 text-2xl font-black text-slate-900">
+        <h1
+          className="stagger-item text-2xl font-black text-slate-900"
+          style={staggerStyle(3)}
+        >
           Commande enregistrée !
         </h1>
-        <p className="animate-slide-up stagger-4 mt-2 text-sm text-slate-500">
+        <p
+          className="stagger-item mt-2 text-sm text-slate-500"
+          style={staggerStyle(4)}
+        >
           Le client sera notifié par WhatsApp
         </p>
 

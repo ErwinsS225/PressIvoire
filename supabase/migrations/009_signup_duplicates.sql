@@ -256,15 +256,32 @@ grant execute on function public.account_exists(text, text) to anon, authenticat
 -- -----------------------------------------------------------------------------
 -- 7. DROITS SUR LES FONCTIONS D'APPUI
 --
---    `normalize_phone` et `demo_phone` sont utilisees par le trigger et par
---    l'index. Elles restent internes : aucun droit d'execution n'est accorde
---    au public, `PUBLIC` n'ayant aucun privilege herite ici puisque le
---    `revoke` ci-dessous porte sur le role implicite.
+-- ⚠ Ces deux fonctions DOIVENT etre executables par `anon` et `authenticated`,
+-- contrairement a ce que l'on pourrait croire en les voulant « internes ».
+--
+-- Raison : la predicate de l'index `profiles_phone_unique` appelle
+-- `demo_phone()`. Postgres evalue cette predicate pour filtrer les lignes au
+-- moment de TOUTE lecture de `profiles` — y compris un simple `select` fait
+-- par l'application. Sans droit d'execution pour le role qui lit, la lecture
+-- echoue :
+--
+--   HTTP 403 — "permission denied for function demo_phone"
+--
+-- Symptome observe : `getContext()` ne trouvait plus aucun profil, se
+-- repliait sur son defaut `{ role: "client" }`, et tout gerant insoluble
+-- etait renvoye vers `/onboarding/client`. La base semblait intacte et le
+-- role correctement enregistre a l'inscription — le defaut etait ailleurs.
+--
+-- Ce n'est pas une fuite : `normalize_phone` ne fait qu'un nettoyage de
+-- chiffres, et `demo_phone` renvoie une constante. Ni l'une ni l'autre ne
+-- lit de table. Les exposer est donc sans risque, et obligatoire.
 -- -----------------------------------------------------------------------------
 alter function public.normalize_phone(text) owner to postgres;
 alter function public.demo_phone() owner to postgres;
-revoke all on function public.normalize_phone(text) from public, anon, authenticated;
-revoke all on function public.demo_phone() from public, anon, authenticated;
+revoke all on function public.normalize_phone(text) from public;
+revoke all on function public.demo_phone() from public;
+grant execute on function public.normalize_phone(text) to anon, authenticated;
+grant execute on function public.demo_phone() to anon, authenticated;
 
 -- -----------------------------------------------------------------------------
 -- 8. CONTROLE

@@ -60,7 +60,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F766E",
+  themeColor: "#4f46e5",
   width: "device-width",
   // `maximumScale: 1` est refuse par iOS : on le laisse a 5 pour ne pas
   // bloquer l'utilisateur qui zoome volontairement.

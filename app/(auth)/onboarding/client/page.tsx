@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/supabase/queries";
+import { resolveDestination } from "@/lib/routing";
 
 /**
  * Titre de l'ecran.
@@ -42,11 +43,16 @@ function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
 export default async function ClientOnboardingPage() {
   const { userId, profile, pressing } = await getContext();
 
-  if (!userId) redirect("/login");
+  // Meme regle que partout ailleurs : le role ne se compare plus « a la main ».
+  const destination = resolveDestination({
+    userId,
+    role: profile?.role ?? null,
+    hasPressing: pressing !== null,
+  });
 
-  // Un gerant (ou un membre d'equipe) n'a rien a faire ici.
-  if (profile?.role !== "client" || pressing) {
-    redirect("/dashboard");
+  // Un client, sans pressing, est le SEUL cas ou cet ecran a du sens.
+  if (destination !== "/onboarding/client") {
+    redirect(destination);
   }
 
   return (

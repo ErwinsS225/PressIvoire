@@ -1,25 +1,37 @@
 "use server";
-
 import { revalidatePath } from "next/cache";
+import type { AppDb } from "@/lib/supabase/queries";
 import { redirect } from "next/navigation";
-import { getContext } from "@/lib/supabase/queries";
+import { requireStaff } from "@/lib/guards";
 import { canCreateOrder, getEffectivePlan } from "@/lib/subscriptions";
+import {
+  queueOrderNotificationForStatus,
+  queueOrderNotification,
+} from "@/lib/notifications-server";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 
 /**
  * Ecriture des commandes via la session de l'utilisateur.
  *
  * Cote RLS, une Server Action herite de la session : les policies filtrent deja
- * sur `app_current_pressing_id()`. On conserve malgre tout un controle
- * d'appartenance explicite (`getWritableClient`) : il coute une requete et
- * protege meme si une policy etait un jour relachee par erreur.
+ * sur `app_current_pressing_id()`. On conserve malgre tout deux controles
+ * explicites :
+ *   - le ROLE, par `requireStaff()` (lib/guards.ts) : la policy « orders:
+ *     creation par le personnel » repondrait en anglais, sans dire qui a le
+ *     droit ; le garde rend le refus lisible ;
+ *   - l'APPARTENANCE, par `getWritableClient` : il coute une requete et
+ *     protege meme si une policy etait un jour relachee par erreur.
  *
  * Le mode demonstration et la cle `service_role` ont ete supprimes a
  * l'onboarding (Phase 2 - Etape 2).
  */
 async function getWritableClient(pressingId: string, orderId?: string) {
-  const { db, pressing } = await getContext();
-  if (!pressing || pressing.id !== pressingId) {
+  const result = await requireStaff("de modifier cette commande");
+  if (!result.ok) throw new Error(result.error);
+
+  const { db, pressing } = result.context;
+  if (pressing.id !== pressingId) {
     throw new Error("Pressing inconnu pour la session courante.");
   }
   if (orderId) {
@@ -55,7 +67,7 @@ export async function advanceOrderStatus(orderId: string, pressingId: string) {
     ORDER_STATUS.OUT_FOR_DELIVERY,
     ORDER_STATUS.DELIVERED,
   ];
-  const index = flow.indexOf(order.status as OrderStatus);
+  const index = flow.indexOf(order.status);
   const next = index >= 0 && index < flow.length - 1 ? flow[index + 1] : null;
   if (!next) throw new Error("Cette commande est deja terminee.");
 
@@ -64,6 +76,9 @@ export async function advanceOrderStatus(orderId: string, pressingId: string) {
     .update({ status: next })
     .eq("id", orderId);
   if (error) throw new Error(error.message);
+
+  // Déclencher la notification correspondant au nouveau statut
+  await queueOrderNotificationForStatus(orderId, next);
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");
@@ -102,11 +117,7 @@ export async function recordPayment(
   if (order) {
     const remaining = Math.max(order.total - (order.amount_paid ?? 0), 0);
     const context = await getEffectivePlan();
-    if (
-      context &&
-      !context.limits.partialPayments &&
-      amount < remaining
-    ) {
+    if (context && !context.limits.partialPayments && amount < remaining) {
       throw new Error(
         `Les encaissements partiels nécessitent le plan Pro (plan actuel : ${context.plan.name}). Enregistrez la totalité du solde.`,
       );
@@ -131,6 +142,8 @@ export async function recordPayment(
     p_method: method,
   });
   if (error) throw new Error(error.message);
+  // Déclencher la notification de paiement reçu
+  await queueOrderNotification(orderId, NOTIFICATION_EVENTS.PAYMENT_RECEIVED);
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");
@@ -163,9 +176,15 @@ export interface NewOrderInput {
  * concourir, la contrainte reste la seule source de verite et l'echec est
  * remontee proprement.
  */
-export async function createOrder(input: NewOrderInput): Promise<{ orderId: string }> {
-  const { db, pressing } = await getContext();
-  if (!pressing) throw new Error("Aucun pressing courant.");
+export async function createOrder(
+  input: NewOrderInput,
+): Promise<{ orderId: string }> {
+  // Le role est verifie AVANT tout : `createOrder` est un point d'entree HTTP
+  // public, appelable sans passer par l'ecran de caisse.
+  const result = await requireStaff("d'enregistrer une commande");
+  if (!result.ok) throw new Error(result.error);
+
+  const { db, pressing } = result.context;
   if (input.items.length === 0) throw new Error("La commande est vide.");
 
   /*
@@ -188,8 +207,12 @@ export async function createOrder(input: NewOrderInput): Promise<{ orderId: stri
     );
   }
 
-  const subtotal = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const deliveryFee = input.deliveryType === "home_delivery" ? (pressing.delivery_fee ?? 0) : 0;
+  const subtotal = input.items.reduce(
+    (sum, item) => sum + item.quantity * item.unitPrice,
+    0,
+  );
+  const deliveryFee =
+    input.deliveryType === "home_delivery" ? (pressing.delivery_fee ?? 0) : 0;
   const total = subtotal + deliveryFee;
 
   const year = new Date().getFullYear();
@@ -231,7 +254,9 @@ export async function createOrder(input: NewOrderInput): Promise<{ orderId: stri
     .single();
 
   if (orderError || !order) {
-    throw new Error(orderError?.message ?? "Creation de la commande impossible.");
+    throw new Error(
+      orderError?.message ?? "Creation de la commande impossible.",
+    );
   }
 
   const rows = input.items.map((item) => ({

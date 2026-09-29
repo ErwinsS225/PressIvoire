@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { resolveDestination } from "@/lib/routing";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeIvorianPhone, safeRedirectPath } from "@/lib/utils";
 import {
@@ -280,8 +281,21 @@ export async function signUp(
   }
 
   revalidatePath("/", "layout");
+
+  /*
+   * Destination d'apres inscription : la meme fonction centrale que le layout
+   * et les ecrans d'onboarding. On ne reapplique donc pas une regle ecrite a
+   * la main ici — c'etait une occasion de diverger de plus.
+   *
+   * Le compte vient d'etre cree : il n'a ni pressing (`hasPressing: false`),
+   * donc le role suffit a trancher entre les deux parcours.
+   */
   redirect(
-    values.role === "owner" ? "/onboarding/pressing" : "/onboarding/client",
+    resolveDestination({
+      userId: data.user?.id ?? null,
+      role: values.role,
+      hasPressing: false,
+    }),
   );
 }
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CI_COMMUNES } from "@/lib/constants";
+import { CI_COMMUNES, WASH_TYPE_LABELS } from "@/lib/constants";
 import { normalizeIvorianPhone } from "@/lib/utils";
 
 /**
@@ -76,7 +76,7 @@ export const catalogArticleSchema = z.object({
 });
 export type CatalogArticle = z.infer<typeof catalogArticleSchema>;
 
-export const step2Schema = z.object({
+const step2Shape = z.object({
   pickupEnabled: z.boolean(),
   deliveryEnabled: z.boolean(),
   deliveryFee: z.number().int().min(0).max(100_000),
@@ -85,10 +85,58 @@ export const step2Schema = z.object({
   defaultDelaysByWash: z.object({
     eau: z.number().int().min(1).max(336),
     sec: z.number().int().min(1).max(336),
-    repassage_seul: z.number().int().min(1).max(336),
+    repassage_seul: z.number().int().max(336).min(1),
     detachage: z.number().int().min(1).max(336),
   }),
-  articles: z.array(catalogArticleSchema).min(1, "Gardez au moins un article actif"),
+  articles: z.array(catalogArticleSchema).min(1, "Ajoutez au moins un article"),
+});
+
+export const step2Schema = step2Shape.superRefine((values, ctx) => {
+  const active = values.articles.filter((article) => article.isActive);
+
+  /*
+   * Le message de `.min(1)` parlait d'un article « actif » alors que la
+   * contrainte ne comptait que le nombre de lignes : un catalogue entierement
+   * desactive passait, puis se retrouvait vide en base (l'action d'onboarding
+   * ne persiste que les articles actifs).
+   */
+  if (active.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["articles"],
+      message: "Gardez au moins un article actif",
+    });
+  }
+
+  /*
+   * Unicite (name, washType) parmi les articles ACTIFS.
+   *
+   * Ce n'est pas une preference : la table porte la contrainte
+   * `articles_pressing_name_wash_uk unique (pressing_id, name, wash_type)`.
+   * Sans ce controle, deux lignes identiques echouaient uniquement a la FIN du
+   * parcours, dans `complete_onboarding`, et l'utilisateur decouvrait son
+   * doublon apres avoir rempli trois etapes — sur un message SQL brut.
+   *
+   * Seuls les articles actifs sont concernes : `completeOnboarding` filtre sur
+   * `isActive` avant d inserer, donc deux lignes desactivees de meme nom
+   * n'atteignent jamais la base.
+   */
+  const seen = new Map<string, number>();
+  active.forEach((article, index) => {
+    // Normalisation identique a celle du comparatif de la colonne : deux
+    // saisies differentes de la meme casse et de espaces ne doivent pas
+    // passer pour deux articles distincts.
+    const key = `${article.name.trim().toLowerCase()}|${article.washType}`;
+    if (seen.has(key)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["articles", index, "name"],
+        message: `Doublon : « ${article.name} » existe déjà en ${WASH_TYPE_LABELS[article.washType].toLowerCase()}`,
+      });
+    } else {
+      seen.set(key, index);
+    }
+  });
 });
 export type Step2Values = z.infer<typeof step2Schema>;
 

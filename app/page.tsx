@@ -252,19 +252,22 @@ function Hero() {
 
       <div className="container relative grid items-center gap-14 py-16 md:py-24 lg:grid-cols-2">
         <div>
-          <span className="animate-slide-up inline-flex items-center gap-2 rounded-full bg-brand-50 px-3.5 py-1.5 text-xs font-bold text-brand-700">
+          <span
+            className="stagger-item inline-flex items-center gap-2 rounded-full bg-brand-50 px-3.5 py-1.5 text-xs font-bold text-brand-700"
+            style={staggerStyle(0)}
+          >
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             Conçu pour la Côte d&apos;Ivoire
           </span>
 
-          <h1 className="animate-slide-up mt-5 text-4xl font-black leading-[1.1] tracking-tight text-slate-900 sm:text-5xl" style={staggerStyle(1)}>
+          <h1 className="stagger-item mt-5 text-4xl font-black leading-[1.1] tracking-tight text-slate-900 sm:text-5xl" style={staggerStyle(1)}>
             Gérez votre pressing
             <br />
             <span className="text-brand-700">depuis votre téléphone</span>
           </h1>
 
           <p
-            className="animate-slide-up mt-5 max-w-lg text-base leading-relaxed text-slate-600"
+            className="stagger-item mt-5 max-w-lg text-base leading-relaxed text-slate-600"
             style={staggerStyle(2)}
           >
             Commandes, tournées de livraison, encaissement mobile money et
@@ -273,7 +276,7 @@ function Hero() {
           </p>
 
           <div
-            className="animate-slide-up mt-8 flex flex-col gap-3 sm:flex-row"
+            className="stagger-item mt-8 flex flex-col gap-3 sm:flex-row"
             style={staggerStyle(3)}
           >
             <Button asChild size="lg" className="btn-press h-12 rounded-xl px-6">
@@ -293,7 +296,7 @@ function Hero() {
           </div>
 
           <p
-            className="animate-slide-up mt-4 text-xs text-slate-400"
+            className="stagger-item mt-4 text-xs text-slate-400"
             style={staggerStyle(4)}
           >
             Installation en 5 minutes · Sans engagement

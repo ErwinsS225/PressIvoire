@@ -73,6 +73,21 @@ export function CreateClientForm() {
                             <Input id="address" name="address" className="col-span-3" />
                         </div>
                     </div>
+                    {/*
+                     * Erreur renvoyee par l'Action : refus de role
+                     * (`requireStaff()`), ou erreur d'ecriture traduite. Sans ce
+                     * rendu, un refus resterait invisible et « Créer le client »
+                     * semblerait simplement ne rien faire.
+                     */}
+                    {state.errors?._server ? (
+                        <p className="pb-2 text-sm text-red-600">
+                            {state.errors._server[0]}
+                        </p>
+                    ) : state.message ? (
+                        <p className="pb-2 text-sm text-green-700">
+                            {state.message}
+                        </p>
+                    ) : null}
                     <DialogFooter>
                         <SubmitButton />
                     </DialogFooter>

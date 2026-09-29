@@ -24,6 +24,9 @@ coverage/
 # Fichiers parasites
 /E
 
+# Editeur : preferences locales, jamais partagees
+.vscode/
+
 # Supabase local
 supabase/.temp
 supabase/.branches

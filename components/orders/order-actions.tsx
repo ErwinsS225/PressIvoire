@@ -45,6 +45,7 @@ export function OrderActions({
   total,
   amountPaid,
   currency = "FCFA",
+  canManage = true,
 }: {
   orderId: string;
   pressingId: string;
@@ -52,6 +53,14 @@ export function OrderActions({
   total: number;
   amountPaid: number;
   currency?: string;
+  /**
+   * L'utilisateur fait-il partie du personnel du pressing ?
+   *
+   * `false` (role `client`) : la commande est affichee en lecture seule, sans
+   * bouton d'encaissement ni d'avancement. Pendant visuel de `requireStaff()`
+   * (lib/guards.ts), qui refuserait de toute facon l'ecriture.
+   */
+  canManage?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [showPartial, setShowPartial] = useState(false);
@@ -61,6 +70,29 @@ export function OrderActions({
   const remaining = Math.max(total - amountPaid, 0);
   const settled = remaining === 0;
   const next = nextLabel(status);
+
+  /*
+   * Lecture seule : le role est de toute facon verifie cote serveur
+   * (`requireStaff` a l'entree de chaque action), mais proposer des boutons
+   * qui echoueraient serait malhonnete. On s'arrete donc au constat.
+   *
+   * Cet `if` vient APRES les hooks (useTransition, useState) : les hooks
+   * doivent etre appeles a chaque rendu, sans condition.
+   */
+  if (!canManage) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Actions</CardTitle>
+          <CardDescription>Lecture seule.</CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          L&apos;encaissement et l&apos;avancement du statut sont réservés au
+          personnel du pressing.
+        </CardContent>
+      </Card>
+    );
+  }
 
   const run = (label: string, action: () => Promise<void>) => {
     startTransition(async () => {

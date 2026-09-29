@@ -21,7 +21,7 @@ import {
 import { getContext } from "@/lib/supabase/queries";
 import { getEffectivePlan } from "@/lib/subscriptions";
 import { countHiredStaff, getTeam } from "@/lib/team";
-import { roleLabel } from "@/lib/constants";
+import { isAdminRole, roleLabel } from "@/lib/constants";
 import { AddMemberForm } from "./add-member-form";
 
 export const metadata = { title: "Équipe" };
@@ -53,7 +53,9 @@ export default async function TeamPage() {
         redirect("/onboarding/pressing");
     }
 
-    const canManage = profile?.role === "owner" || profile?.role === "manager";
+    // Meme predicat que `requireAdmin()` (lib/guards.ts) : une seule definition
+    // de « qui administre le pressing », partagee par l'ecran et les Actions.
+    const canManage = isAdminRole(profile?.role);
 
     if (!canManage) {
         return (

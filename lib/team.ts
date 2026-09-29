@@ -104,9 +104,9 @@ export async function addTeamMember(
     p_role: role,
     p_full_name: fullName,
     // `p_phone` est optionnel dans la signature generee (equivalent du
-    // `default null` SQL). On ne l'envoie que s'il existe : `null` ferait
-    // echouer le typage, et surtout n'apporterait rien de plus que l'absence.
-    ...(phone ? { p_phone: phone } : {}),
+    // `default null` SQL) : `undefined` reste donc accepte par le type
+    // (`p_phone?: string`).
+    p_phone: phone ?? undefined,
   });
 
   if (error) return { error: describeTeamError(error.message) };

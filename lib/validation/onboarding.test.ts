@@ -161,6 +161,88 @@ describe("step2Refinement", () => {
     ).toBe(false);
   });
 
+  /*
+   * Le message d'origine parlait d'un article « actif » alors que la
+   * contrainte ne comptait que le nombre de LIGNES : un catalogue entierement
+   * desactive passait la validation, puis partait vide en base.
+   */
+  it("refuse un catalogue entierement desactive", () => {
+    const inactive = {
+      ...services,
+      articles: [{ ...services.articles[0], isActive: false }],
+    };
+    expect(step2Refinement.safeParse(inactive).success).toBe(false);
+  });
+
+  it("accepte un melange d'articles actifs et inactifs", () => {
+    const mixed = {
+      ...services,
+      articles: [
+        { ...services.articles[0] },
+        { ...services.articles[0], name: "Robe", washType: "sec", isActive: false },
+      ],
+    };
+    expect(step2Refinement.safeParse(mixed).success).toBe(true);
+  });
+
+  /*
+   * Unicite (nom, type de lavage) parmi les actifs : c'est la contrainte
+   * `articles_pressing_name_wash_uk` de la base. Sans ce controle, le doublon
+   * n'apparait qu'a la fin du parcours, sur un message SQL brut.
+   */
+  it("refuse deux articles actifs de meme nom et meme lavage", () => {
+    const dup = {
+      ...services,
+      articles: [services.articles[0], { ...services.articles[0] }],
+    };
+    expect(step2Refinement.safeParse(dup).success).toBe(false);
+  });
+
+  it("tolere deux articles actifs de meme nom mais de lavage different", () => {
+    const diffWash = {
+      ...services,
+      articles: [
+        services.articles[0],
+        { ...services.articles[0], washType: "sec" },
+      ],
+    };
+    expect(step2Refinement.safeParse(diffWash).success).toBe(true);
+  });
+
+  it("tolere deux articles desactive en double", () => {
+    // Seuls les articles actifs sont inseres en base : un doublon desactive
+    // n'atteint jamais la contrainte d'unicite.
+    const dup = {
+      ...services,
+      articles: [
+        services.articles[0],
+        { ...services.articles[0], isActive: false },
+      ],
+    };
+    expect(step2Refinement.safeParse(dup).success).toBe(true);
+  });
+
+  it("detecte un doublon a la casse et aux espaces pres", () => {
+    const dup = {
+      ...services,
+      articles: [
+        services.articles[0],
+        { ...services.articles[0], name: "  CHEMISE  " },
+      ],
+    };
+    expect(step2Refinement.safeParse(dup).success).toBe(false);
+  });
+
+  it("refuse un article au nom vide", () => {
+    // C'est l'etat dans lequel se trouve une ligne fraichement ajoutee : elle
+    // doit bloquer la validation tant qu'elle n'est pas nommee.
+    const blank = {
+      ...services,
+      articles: [{ ...services.articles[0], name: "" }],
+    };
+    expect(step2Refinement.safeParse(blank).success).toBe(false);
+  });
+
   it("exige des frais de livraison quand la livraison est active", () => {
     // Regle metier : activer la livraison sans la facturer la rend gratuite
     // par defaut, ce que le gerant n'a pas demande.
