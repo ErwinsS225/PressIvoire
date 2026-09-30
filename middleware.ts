@@ -93,6 +93,11 @@ export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   // Session absente + route privee -> page de connexion.
+  //
+  // La racine (`/`) est volontairement exclue de ce renvoi : elle n'affiche
+  // plus de landing, elle decide elle-meme — `/login` pour un visiteur,
+  // `/dashboard` pour quelqu'un qui a une session (cf. `app/page.tsx`).
+  // La laisser ici renvoyer vers `/login` casserait ce second cas.
   if (!user && !isPublic(pathname) && pathname !== "/") {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
