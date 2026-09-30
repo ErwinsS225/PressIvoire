@@ -27,7 +27,7 @@ export default function NotFound() {
             PP
           </span>
           <span className="text-lg font-black tracking-tight text-foreground">
-            PressingPro
+            PressIvoire
           </span>
         </Link>
 

@@ -64,7 +64,7 @@ export function BrandPanel() {
           >
             PP
           </span>
-          <span className="text-xl font-black tracking-tight">PressingPro</span>
+          <span className="text-xl font-black tracking-tight">PressIvoire</span>
         </Link>
 
         <h1 className="mt-10 text-4xl font-black leading-tight">
@@ -138,7 +138,7 @@ export function AuthLogo() {
         PP
       </span>
       <span className="text-lg font-black tracking-tight text-slate-900">
-        PressingPro
+        PressIvoire
       </span>
     </Link>
   );

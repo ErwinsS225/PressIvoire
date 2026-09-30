@@ -60,7 +60,7 @@ export async function startSubscriptionCheckout(
   try {
     const session = await createCheckoutSession({
       amount: plan.price,
-      description: `PressingPro — plan ${plan.name}`,
+      description: `PressIvoire — plan ${plan.name}`,
       customer: {
         // Le nom affiche sur la page de paiement est celui du PAYEUR, donc
         // du gerant — pas celui de l'etablissement.

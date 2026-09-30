@@ -23,12 +23,12 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: {
-    default: "PressingPro — Gestion de pressing, Côte d'Ivoire",
-    template: "%s · PressingPro",
+    default: "PressIvoire — Gestion de pressing, Côte d'Ivoire",
+    template: "%s · PressIvoire",
   },
   description:
     "SaaS de gestion de pressing et pressing-à-sec en Côte d'Ivoire : commandes, livraison, paiement mobile money, fidélité et pilotage.",
-  applicationName: "PressingPro",
+  applicationName: "PressIvoire",
   /*
    * PWA — c'est ce qui rend l'application installable sur un telephone.
    *
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "PressingPro",
+    title: "PressIvoire",
     statusBarStyle: "default",
   },
   icons: {

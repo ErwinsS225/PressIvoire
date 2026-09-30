@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PressingPro — verification de l'etat de la base apres migration.
+ * PressIvoire — verification de l'etat de la base apres migration.
  *
  * Interroge l'API Management (meme canal que scripts/db-apply.mjs) et affiche :
  *   - la presence des 11 tables attendues + l'activation de RLS sur chacune
@@ -87,7 +87,7 @@ async function q(ref, token, sql) {
 
 
 async function main() {
-  console.log(bold("\nPressingPro — verification de la base\n"));
+  console.log(bold("\nPressIvoire — verification de la base\n"));
   const { ref, url, publishable } = await readConf();
   const token = await readToken();
   if (!ref || !token) {
