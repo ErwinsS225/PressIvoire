@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PressingPro — application des migrations SQL sur un projet Supabase distant.
+ * PressIvoire — application des migrations SQL sur un projet Supabase distant.
  *
  * Utilise l'API Management Supabase (POST /v1/projects/{ref}/database/query),
  * qui est le meme canal que le SQL Editor du dashboard — mais scriptable, et
@@ -132,7 +132,7 @@ function explainError(err, ref) {
 
 /* ------------------------------------------------------------------- main */
 async function main() {
-  console.log(bold("\nPressingPro — application des migrations Supabase\n"));
+  console.log(bold("\nPressIvoire — application des migrations Supabase\n"));
 
   const ref = await readProjectRef();
   if (!ref) {

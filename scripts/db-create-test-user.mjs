@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PressingPro — creation d'un compte de test confirme.
+ * PressIvoire — creation d'un compte de test confirme.
  *
  * A quoi ca sert ? L'inscription normale exige une confirmation par email, or
  * le SMTP du projet n'est pas configure : impossible de creer un compte

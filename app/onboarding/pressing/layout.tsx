@@ -65,7 +65,7 @@ export default async function OnboardingLayout({
             PP
           </span>
           <span className="text-sm font-black tracking-tight text-slate-900">
-            PressingPro
+            PressIvoire
           </span>
         </Link>
         <p className="text-xs text-slate-500">Configuration de votre pressing</p>

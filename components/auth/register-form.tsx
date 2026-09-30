@@ -34,7 +34,7 @@ export function RegisterForm() {
         <>
           <AuthHeader
             title="Créer un compte"
-            subtitle="Dites-nous comment vous utilisez PressingPro"
+            subtitle="Dites-nous comment vous utilisez PressIvoire"
           />
 
           <RolePicker

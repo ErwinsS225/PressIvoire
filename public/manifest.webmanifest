@@ -1,6 +1,6 @@
 {
-  "name": "PressingPro — Gestion de pressing",
-  "short_name": "PressingPro",
+  "name": "PressIvoire — Gestion de pressing",
+  "short_name": "PressIvoire",
   "description": "Commandes, livraisons, caisse et rapports pour votre pressing en Côte d'Ivoire.",
   "start_url": "/dashboard",
   "scope": "/",
