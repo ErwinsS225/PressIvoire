@@ -366,6 +366,35 @@ export interface WaveCheckoutSession {
   custom_fields?: Record<string, string> | null;
 }
 
+/**
+ * Cette session de paiement a-t-elle RÉELLEMENT été réglée ?
+ *
+ * Wave tient deux compteurs distincts, et c'est précisément leur couple qui
+ * décide :
+ *
+ * - `payment_status` : l'argent. `complete` = encaissé.
+ * - `checkout_status` : le parcours. `complete` = session terminée.
+ *
+ * On exige les DEUX. Un seul `complete` ne suffit pas, et c'est là que se
+ * trouve le risque :
+ *
+ * - `pending` / `complete` — l'empreinte est engagée mais l'argent n'est pas
+ *   arrivé. Activer ici distribue un abonnement gratuit.
+ * - `complete` / `open` — l'argent est là, la session n'est pas close. Cas
+ *   anodin, mais on ne devine pas : sans close, un remboursement ou une
+ *   annulation ultérieure n'aurait pas encore de trace.
+ *
+ * La fonction est volontairement SÉPARÉE de `POST /v1/checkout/sessions` :
+ * c'est la seule porte qui décide d'un abonnement payant, elle mérite donc
+ * d'être lue et testée sans passer par le réseau.
+ *
+ * Le repli est « non payé ». Un doute doit coûter un abonnement manquant,
+ * jamais un abonnement offert.
+ */
+export function isSessionPaid(session: Pick<WaveCheckoutSession, "payment_status" | "checkout_status">): boolean {
+  return session.payment_status === "complete" && session.checkout_status === "complete";
+}
+
 export interface WaveErrorBody {
   code?: string;
   message?: string;

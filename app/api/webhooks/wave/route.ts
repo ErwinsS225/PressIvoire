@@ -31,11 +31,11 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import {
+  isSessionPaid,
   parseWaveEvent,
   retrieveCheckoutSession,
   verifyWaveSignature,
   WAVE_EVENTS,
-  WaveApiError,
 } from "@/lib/wave";
 
 /** Le webhook est par nature dynamique : jamais de cache. */
@@ -106,9 +106,16 @@ async function onPaymentCompleted(eventId: string, sessionId: string | null) {
 
   const session = await retrieveCheckoutSession(sessionId);
 
-  if (session.payment_status !== "complete" && session.checkout_status !== "complete") {
-    // Evenement annonce comme termine, mais l'API dit le contraire. On ne
-    // fait rien : mieux vaut un abonnement manquant qu'un abonnement offert.
+  if (!isSessionPaid(session)) {
+    /*
+     * Evenement annonce comme termine, mais l'API dit le contraire. On ne
+     * fait rien : mieux vaut un abonnement manquant qu'un abonnement offert.
+     *
+     * Les deux statuts sont exiges (cf. `isSessionPaid`). Exiger UN seul
+     * `complete` laissait passer le cas `pending` / `complete` : l'evenement
+     * declarait la commande terminee alors que l'argent n'etait pas encaisse,
+     * et l'abonnement Pro etait.active.
+     */
     console.error(
       `[wave] session ${sessionId} : statut ${session.payment_status}/${session.checkout_status}`,
     );
@@ -146,7 +153,14 @@ async function onPaymentCompleted(eventId: string, sessionId: string | null) {
       console.log(`[wave] evenement deja traite : ${eventId}`);
       return;
     }
-    if (error instanceof WaveApiError) throw error;
+    /*
+     * `error` vient de `supabase.rpc(...)` : c'est un `PostgrestError`, jamais
+     * une `WaveApiError` (celle-ci n'est levee que par `waveFetch`, et
+     * `retrieveCheckoutSession` est deja execute plus haut). Le test
+     * `instanceof WaveApiError` etait donc mort : il remontait un message
+     * technique de base au lieu du libelle metier de Wave. On le retire, et
+     * toute erreur d'activation est remontee telle quelle au journal.
+     */
     throw new Error(`Activation impossible : ${error.message}`);
   }
 

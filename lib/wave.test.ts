@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeWaveSignature,
   formatWaveAmount,
+  isSessionPaid,
   parseWaveEvent,
   parseWaveSignature,
   verifyWaveSignature,
@@ -194,6 +195,61 @@ describe("verifyWaveSignature", () => {
     const header = `t=${NOW / 1000},v1=ancien-secret-obsolete,v1=${valid}`;
     const verdict = verifyWaveSignature({ header, rawBody: BODY, secret: SECRET, now: NOW });
     expect(verdict.ok).toBe(true);
+  });
+});
+
+/*
+ * LA PORTE FINANCIERE.
+ *
+ * Ces tests verrouillent la seule decision qui distribue un abonnement payant.
+ *
+ * Le bug qu'ils previennent : le handler rejetait avec un `&&`
+ * (`statut !== "complete" && statut !== "complete"`). Cette condition ne
+ * rejette que si les DEUX statuts sont non complets — donc le cas
+ * `payment_status: "pending"` / `checkout_status: "complete"` PASSAIT, et
+ * l'abonnement Pro etait active alors que l'argent n'etait jamais arrive.
+ *
+ * Chaque cas ci-dessous doit renvoyer `false` sauf le tout-premier. C'est
+ * l'inverse exact du comportement d'avant.
+ */
+describe("isSessionPaid", () => {
+  it("accepte une session entierement reglee", () => {
+    expect(isSessionPaid({ payment_status: "complete", checkout_status: "complete" })).toBe(true);
+  });
+
+  /*
+   * LA REGRESSION. `pending` = l'empreinte est engagee mais l'argent n'est pas
+   * arrive. Avant le correctif, cette session activait un abonnement Pro
+   * gratuit : c'etait de la perte d'argent directe.
+   */
+  it("refuse un paiement en attente meme si le parcours est termine", () => {
+    expect(isSessionPaid({ payment_status: "pending", checkout_status: "complete" })).toBe(false);
+  });
+
+  it("refuse un parcours termine alors que l'argent manque", () => {
+    expect(isSessionPaid({ payment_status: "complete", checkout_status: "open" })).toBe(false);
+  });
+
+  it("refuse les sessions non reglees", () => {
+    for (const session of [
+      { payment_status: "pending", checkout_status: "open" },
+      { payment_status: "failed", checkout_status: "complete" },
+      { payment_status: "failed", checkout_status: "open" },
+      { payment_status: "expired", checkout_status: "complete" },
+      { payment_status: "", checkout_status: "" },
+    ]) {
+      expect(isSessionPaid(session)).toBe(false);
+    }
+  });
+
+  /*
+   * Un statut inconnu ne vaut PAS « payé ». Wave peut ajouter une valeur sans
+   * que nous le prevoyions : le repli doit rester fermé, sinon un
+   * `partially_paid` d'un futur fournisseur ouvrirait la porte par defaut.
+   */
+  it("refuse tout statut inconnu", () => {
+    expect(isSessionPaid({ payment_status: "COMPLETE", checkout_status: "complete" })).toBe(false);
+    expect(isSessionPaid({ payment_status: "partially_paid", checkout_status: "complete" })).toBe(false);
   });
 });
 
