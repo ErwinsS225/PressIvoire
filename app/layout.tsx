@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 import {
@@ -94,6 +95,20 @@ export default function RootLayout({
         className={`${inter.variable} ${poppins.variable} font-sans min-h-dvh bg-background text-foreground`}
       >
         <ThemeProvider>{children}</ThemeProvider>
+        {/*
+         * Mesure d'audience (Vercel Analytics).
+         *
+         * Rend un composant invisible qui collecte les pages vues et les Web
+         * Vitals. Il doit vivre dans le layout RACINE et non dans une page :
+         * c'est le seul endroit rendu sur toutes les routes, donc le seul
+         * qui garantit qu'aucune vue n'est manquée.
+         *
+         * Il ne signale AUCUNE donnee identifiante : ni session, ni
+         * email, ni nom. Sans `mode="debug"`, l'envoi a lieu uniquement en
+         * production — en developpement, les appels vers Vercel ne polluent
+         * donc pas les statistiques.
+         */}
+        <Analytics />
         <Toaster
           position="top-center"
           richColors
