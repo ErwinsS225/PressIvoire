@@ -44,9 +44,16 @@ export default async function AppLayout({
     children: React.ReactNode;
 }) {
     /*
-     * Une seule lecture du contexte pour ce rendu : le layout en a besoin pour
-     * la garde ET pour le compteur de quota. Auparavant `getContext()` etait
-     * rappele deux fois, soit deux allers-retours Supabase en trop.
+     * Une seule lecture du contexte pour ce rendu : le layout en a besoin
+     * pour la garde ET pour le compteur de quota. Auparavant `getContext()`
+     * etait rappele deux fois, soit deux allers-retours Supabase en trop.
+     *
+     * Ce contexte est ensuite TRANSMIS a `getEffectivePlan()` et
+     * `getMonthlyOrderCountForPlan()`. Ces deux fonctions le relisaient sinon
+     * chacune de leur cote : le layout coutait trois lectures du contexte —
+     * six requetes — alors que son commentaire n'en annoncait qu'une. Le
+     * parametre optionnel mis en place dans lib/subscriptions.ts rend le
+     * dedoublage explicite plutot que laisse au hasard de l'appelant.
      */
     const appContext = await getContext();
 
@@ -64,7 +71,7 @@ export default async function AppLayout({
         redirect(destination);
     }
 
-    const context = await getEffectivePlan();
+    const context = await getEffectivePlan(appContext);
 
     const capabilities: Capability[] = [];
     if (context?.limits.deliveries) capabilities.push("deliveries");
@@ -85,9 +92,9 @@ export default async function AppLayout({
     const isFree = context?.plan.id === "free";
     let usedOrders = 0;
     if (isFree && appContext.pressing) {
-        // Le pressing vient de la lecture unique faite plus haut : inutile
-        // d'interroger `getContext()` une seconde fois.
-        usedOrders = await getMonthlyOrderCountForPlan(appContext.pressing.id);
+        // Le pressing vient de la lecture unique faite plus haut : on le
+        // passe a la fonction plutot que de la laisser relire le contexte.
+        usedOrders = await getMonthlyOrderCountForPlan(appContext.pressing.id, appContext);
     }
 
     return (

@@ -11,10 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getContext } from "@/lib/supabase/queries";
-import {
-  getEffectivePlan,
-  getMonthlyOrderCountForPlan,
-} from "@/lib/subscriptions";
+import { getEffectivePlan } from "@/lib/subscriptions";
 import { roleLabel } from "@/lib/constants";
 import { formatFCFA } from "@/lib/utils";
 
@@ -39,13 +36,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
  * formulaire absent — le gerant croirait avoir change ses horaires.
  */
 export default async function SettingsPage() {
-  const { pressing, profile } = await getContext();
+    const appContext = await getContext();
+    const { pressing, profile } = appContext;
 
-  if (!pressing) {
-    redirect("/onboarding/pressing");
-  }
+    if (!pressing) {
+        redirect("/onboarding/pressing");
+    }
 
-  const context = await getEffectivePlan();
+    // Le contexte est deja charge : on le transmet pour ne pas le relire.
+    const context = await getEffectivePlan(appContext);
   const plan = context?.plan ?? { id: "free", name: "Gratuit" };
   const isActive = context?.isActive ?? false;
 

@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import type { AppDb } from "@/lib/supabase/queries";
 import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/guards";
-import { canCreateOrder, getEffectivePlan } from "@/lib/subscriptions";
+import { canCreateOrder, resolveEffectivePlan } from "@/lib/subscriptions";
 import {
   queueOrderNotificationForStatus,
   queueOrderNotification,
@@ -94,7 +94,7 @@ export async function recordPayment(
   amount: number,
   method: string,
 ) {
-  const { db } = await getWritableClient(pressingId, orderId);
+  const { db, pressing } = await getWritableClient(pressingId, orderId);
 
   if (!Number.isInteger(amount) || amount <= 0) {
     throw new Error("Montant invalide.");
@@ -116,8 +116,10 @@ export async function recordPayment(
 
   if (order) {
     const remaining = Math.max(order.total - (order.amount_paid ?? 0), 0);
-    const context = await getEffectivePlan();
-    if (context && !context.limits.partialPayments && amount < remaining) {
+    // `getWritableClient()` a deja resolu le contexte : on reutilise `pressing`
+    // plutot que de le relire pour deduire le plan courant.
+    const context = resolveEffectivePlan(pressing);
+    if (!context.limits.partialPayments && amount < remaining) {
       throw new Error(
         `Les encaissements partiels nécessitent le plan Pro (plan actuel : ${context.plan.name}). Enregistrez la totalité du solde.`,
       );
@@ -200,7 +202,13 @@ export async function createOrder(
    * limite commerciale, pas une garantie d'exclusion — une migration SQL
    * serait necessaire pour un compte strict, non justifie ici.
    */
-  const quota = await canCreateOrder();
+  /*
+   * Le contexte est deja resolu par `requireStaff()` : on le transmet plutot
+   * que de laisser `canCreateOrder()` refaire la lecture. Sans cela, creer une
+   * commande relisait le contexte quatre fois (garde, plan, quota, compteur)
+   * pour en deduire le meme pressing a chaque fois.
+   */
+  const quota = await canCreateOrder(result.context);
   if (!quota.allowed && quota.limit !== null) {
     throw new Error(
       `Quota du plan ${quota.planName} atteint : ${quota.used} commandes sur ${quota.limit} ce mois-ci. Passez au plan Pro pour continuer à enregistrer des commandes.`,

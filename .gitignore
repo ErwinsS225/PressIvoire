@@ -27,6 +27,13 @@ coverage/
 # Editeur : preferences locales, jamais partagees
 .vscode/
 
+# Worktrees d'agent (.kilo/worktrees/curved-kumquat) : depot git imbrique
+# contenant une branche de travail distincte. Il duplique tout le code source,
+# ce qui pollue les recherches dans l'IDE et double les resultats de grep.
+# NE PAS supprimer ce repertoire : il porte des commits absents de `main`
+# (cf. `git log main..c3b0880`). On l'ignore seulement.
+.kilo/
+
 # Supabase local
 supabase/.temp
 supabase/.branches

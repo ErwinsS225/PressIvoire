@@ -37,19 +37,22 @@ const OFFER = { free: PLANS.free, pro: PLANS.pro } as const;
  * branché, et on ne fait pas semblant le contraire.
  */
 export default async function SubscriptionPage() {
-    const { pressing, profile } = await getContext();
+    const appContext = await getContext();
+    const { pressing, profile } = appContext;
 
     if (!pressing) {
         redirect("/onboarding/pressing");
     }
 
-    const context = await getEffectivePlan();
+    // Contexte deja charge : on le transmet aux deux lectures ci-dessous,
+    // qui le relisaient chacune de leur cote.
+    const context = await getEffectivePlan(appContext);
     const plan = context?.plan ?? PLANS.free;
     const isActive = context?.isActive ?? false;
     const storedPlanId = context?.storedPlanId ?? "free";
     const isFree = plan.id === "free";
 
-    const used = await getMonthlyOrderCountForPlan(pressing.id);
+    const used = await getMonthlyOrderCountForPlan(pressing.id, appContext);
     const limit = plan.limits.ordersPerMonth;
 
     // Quota atteint : le moment de la décision. L'écran doit le dire AVANT que

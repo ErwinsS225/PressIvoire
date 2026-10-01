@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AuthFooterLink, AuthForm, AuthHeader } from "@/components/auth/auth-form";
 import { InputField } from "@/components/auth/input-field";
 import { signIn } from "@/app/actions/auth";
+import { getLandingUrl } from "@/lib/app-url";
 import { safeRedirectPath } from "@/lib/utils";
 
 export const metadata = { title: "Connexion" };
@@ -32,6 +33,23 @@ export default async function LoginPage({
       ? "Lien de confirmation invalide ou déjà utilisé. Inscrivez-vous à nouveau, ou connectez-vous si votre compte existe."
       : null;
 
+  /*
+   * Lien vers la landing (autre deploiement).
+   *
+   * Le cas reel : un visiteur tombe sur cet ecran depuis un lien partage, sans
+   * avoir vu la page de presentation. Il ne sait pas ce qu'il va obtenir, et
+   * n'a aucun moyen de le decouvrir — l'application ne contient ni capture
+   * d'ecran ni tarif. Un lien discret evite qu'il referme l'onglet.
+   *
+   * Le lien est rendu SEULEMENT si l'URL est configuree : sans elle, pas de
+   * balise du tout, plutot qu'un `href=""` qui renverrait vers la racine de
+   * l'application et passerait pour un lien casse.
+   *
+   * `rel="noopener"` : l'attribut s'impose des que la cible est un autre
+   * domaine — il empeche la page destination d'acceder a `window.opener`.
+   */
+  const landingUrl = getLandingUrl();
+
   return (
     <AuthForm
       kind="login"
@@ -46,12 +64,23 @@ export default async function LoginPage({
       hiddenFields={{ redirect: safeRedirectPath(searchParams.redirect) }}
       notice={urlError}
       footer={
-        <div className="border-t border-slate-100 pt-3">
+        <div className="space-y-3 border-t border-slate-100 pt-3">
           <AuthFooterLink
             prefix="Pas encore de compte ?"
             href="/register"
             label="Créer un compte"
           />
+          {landingUrl ? (
+            <p className="text-center text-xs text-slate-400">
+              <a
+                href={landingUrl}
+                rel="noopener"
+                className="font-semibold text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+              >
+                D&apos;en savoir plus sur PressingPro
+              </a>
+            </p>
+          ) : null}
         </div>
       }
     >
