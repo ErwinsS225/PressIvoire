@@ -8,6 +8,8 @@ import {
   ThemeProvider,
   themeInitScript,
 } from "@/components/theme/theme-provider";
+import { ServiceWorkerRegistrar } from "@/components/pwa/install-prompt";
+import { BRAND_NAME, BRAND_THEME_COLOR } from "@/lib/brand";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -42,7 +44,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "PressingPro",
+    title: BRAND_NAME,
     statusBarStyle: "default",
   },
   icons: {
@@ -61,7 +63,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#4f46e5",
+  // Depuis `lib/brand`, et non en dur : cette valeur doit rester identique a
+  // celle du manifeste. `lib/brand.test.ts` verifie l'egalite des deux.
+  themeColor: BRAND_THEME_COLOR,
   width: "device-width",
   // `maximumScale: 1` est refuse par iOS : on le laisse a 5 pour ne pas
   // bloquer l'utilisateur qui zoome volontairement.
@@ -95,6 +99,14 @@ export default function RootLayout({
         className={`${inter.variable} ${poppins.variable} font-sans min-h-dvh bg-background text-foreground`}
       >
         <ThemeProvider>{children}</ThemeProvider>
+        {/*
+          Service worker : hors-ligne et capacite d'installation.
+
+          Il vit dans le layout ROOT, sans quoi chaque page devrait y penser et
+          une seule omission annulerait cette capacite pour tout le site. Il ne
+          rend aucun HTML : c'est un point de branchement.
+        */}
+        <ServiceWorkerRegistrar />
         {/*
          * Mesure d'audience (Vercel Analytics).
          *

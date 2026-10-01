@@ -16,6 +16,7 @@
     "db:test:user": "node scripts/db-create-test-user.mjs",
     "db:types": "supabase gen types typescript --linked --schema public > lib/supabase/types.ts",
     "icons": "node scripts/generate-icons.mjs",
+    "push:keys": "node scripts/generate-vapid-keys.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -3,6 +3,7 @@ import { AuthFooterLink, AuthForm, AuthHeader } from "@/components/auth/auth-for
 import { InputField } from "@/components/auth/input-field";
 import { signIn } from "@/app/actions/auth";
 import { getLandingUrl } from "@/lib/app-url";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { safeRedirectPath } from "@/lib/utils";
 
 export const metadata = { title: "Connexion" };
@@ -81,6 +82,17 @@ export default async function LoginPage({
               </a>
             </p>
           ) : null}
+
+          {/*
+            Installation sur telephone.
+
+            L'ecran de connexion est le bon endroit : c'est la premiere page
+            que voit quelqu'un qui arrive par un lien partage depuis un
+            telephone, et c'est le moment ou l'application est deja decouverte.
+            Le composant ne rend rien si l'application est deja installee ou si
+            le navigateur n'a rien a proposer — aucun espace reserve.
+          */}
+          <InstallPrompt />
         </div>
       }
     >

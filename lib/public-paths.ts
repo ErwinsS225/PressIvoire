@@ -31,11 +31,24 @@
  * une session de type « recovery », donc l'utilisateur arrive deja
  * connecte. Exiger une session complete le bloquerait.
  */
+// - `/offline`  : repli du service worker. DOIT rester public, et c'est la
+//                raison pour laquelle il est ici plutot que dans `(app)` :
+//                un utilisateur hors ligne qui verrait « connectez-vous »
+//                au moment ou le reseau tombe comprendrait que la panne est
+//                chez lui. Elle ne contient aucune donnee, donc l'exposer
+//                sans session ne coute rien.
+
 export const PUBLIC_PATHS: readonly string[] = [
   "/login",
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/offline",
+  // necessaires AU mecanisme de session, pas des pages protegees : sans eux,
+  // `sw.js` recoit une page de connexion au lieu du script, et le manifeste
+  // est de meme redirige — l'installation de la PWA devient impossible.
+  "/sw.js",
+  "/manifest.webmanifest",
 ];
 
 /**

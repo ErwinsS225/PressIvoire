@@ -13,6 +13,7 @@ encaissement multi-espèces, tableau de bord et rapports.
 ## Sommaire
 
 - [Ce que fait l'application](#ce-que-fait-lapplication)
+- [PWA — service worker, installation, marque](#pwa--service-worker-installation-marque)
 - [Stack technique](#stack-technique)
 - [Installation](#installation)
 - [Commandes](#commandes)
@@ -64,6 +65,111 @@ sur téléphone une barre de navigation basse. **Même base de code, aucun
 
 Le manifeste est dans `public/manifest.webmanifest`, les icônes sont
 générées par `npm run icons`.
+
+---
+
+## PWA — service worker, installation, marque
+
+Trois briques ajoutées d'un bloc, parce qu'elles ne servent à rien séparément :
+sans service worker il n'y a pas d'installation, sans installation le push
+n'existe pas, et la marque doit être la même sur les deux déploiements.
+
+### Service worker (`public/sw.js`)
+
+**La règle qui domine tout le fichier : aucune page authentifiée n'est mise
+en cache.** `/dashboard`, `/orders`, `/clients` contiennent les données d'**un**
+pressing ; les rejouer sur un téléphone partagé, ou après déconnexion, les
+exposerait à l'utilisateur suivant. Ce serait une fuite entre tenants, pas une
+simple inefficacité.
+
+| Requête | Stratégie |
+|---|---|
+| Navigation (`/dashboard`, …) | `network-only`, repli sur `/offline` |
+| `/_next/static/*` | `cache-first` — le hash est dans le nom, donc immuable |
+| Images, polices, icônes | `stale-while-revalidate` |
+| `/api/*`, `/auth/*`, `/_next/image` | non intercepté |
+
+Seul `/offline` est préchargé. Il est **public** (`lib/public-paths.ts`) : sans
+session, un utilisateur hors ligne verrait « connectez-vous » au moment précis
+où le réseau tombe, et comprendrait que la panne est chez lui.
+
+> **Le piège qui a fait perdre deux heures.** `sw.js` est un `.js`. Toute règle
+> de middleware qui exclut les fichiers statiques par extension le capture
+> donc, et le middleware le redirige vers `/login` :
+>
+> ```
+> GET /sw.js → 307 → /login?redirect=%2Fsw.js
+> ```
+>
+> Le navigateur reçoit du HTML, rejette l'enregistrement, et **rien ne se voit** :
+> ni erreur, ni avertissement console en production. `/sw.js` et
+> `/manifest.webmanifest` sont donc listés dans `PUBLIC_PATHS` et le `matcher`
+> exclut `.webmanifest`. Sans ça, toute la section ci-dessous est inopérante.
+
+### Bouton d'installation
+
+`components/pwa/install-prompt.tsx` capte `beforeinstallprompt` et rend un
+bouton qui déclenche l'invite. Il est posé sur `/login` — première page vue
+par quelqu'un qui arrive par un lien partagé depuis un téléphone.
+
+Deux cas couverts par `lib/pwa.ts` (26 tests) :
+
+- **iOS n'expose aucune API.** Apple ne fournit ni `beforeinstallprompt` ni
+  aucune détection d'installation. Un bouton qui n'apparaît qu'à l'arrivée de
+  l'événement serait invisible sur une large part du parc mobile ivoirien. Le
+  composant affiche donc à la place les gestes manuels (Partage → Sur l'écran
+  d'accueil). Safari **macOS** reçoit le menu Fichier, pas le partage mobile.
+- **iPadOS se fait passer pour un Mac** : `userAgent` annonce « Macintosh ».
+  Seul `maxTouchPoints > 1` le distingue — sinon tous les iPad recevraient
+  des gestes de Dock.
+
+Le composant ne rend **rien** si l'application est déjà installée ou si le
+navigateur n'a rien à proposer : aucun espace réservé.
+
+### Cohérence de marque (`lib/brand.ts`)
+
+L'application était en indigo `#4f46e5` pendant que la landing était verte :
+deux produits différents aux yeux d'un visiteur, au moment précis où la
+conversion se joue. `lib/brand.ts` porte les valeurs, le manifeste et le
+`viewport` s'y réfèrent, et `lib/brand.test.ts` **échoue si elles divergent** —
+c'est le seul verrou, les deux dépôts ne partageant aucun code.
+
+`theme_color` suit le **fond** de l'interface (`#f8f7f2`), pas la couleur de
+marque : Android peint la barre d'état avec, et c'est elle qui donne la première
+impression. Le vert reste sur l'icône (`npm run icons`).
+
+### Notifications push
+
+`lib/push.ts` gère l'abonnement, la migration `011_push_subscriptions.sql`
+stocke les endpoints avec une RLS alignée sur `notifications` (personnel du
+pressing, `profile_id = auth.uid()`). La table est **distincte** de
+`notifications` : celle-ci est une file d'envoi, celle-là vit jusqu'à ce que
+l'utilisateur désinstalle.
+
+```bash
+npm run push:keys   # une fois pour toutes — voir l'avertissement ci-dessous
+```
+
+> ⚠ **Ne jamais régénérer ces clés après la mise en service.** Changer la clé
+> privée invalide tous les abonnements existants ; les téléphones cessent de
+> recevoir des notifications, silencieusement.
+
+**L'envoi n'est pas branché** — `sw.js` sait déjà afficher une notification
+reçue, mais rien ne l'émet encore. Il reste à écrire l'appel VAPID (route ou
+Edge Function) et à le déclencher depuis `app/actions/notifications.ts`. Le
+récepteur côté navigateur est complet et testé.
+
+### Attribution de campagne
+
+La landing capte `utm_*` / `gclid` / `fbclid` pendant 30 jours, puis s'arrêtait
+à la frontière du déploiement. Le middleware (`lib/attribution.ts`) pose désormais
+un cookie `pp_attribution` à l'arrivée, **avant** toute redirection, filtré et
+borné.
+
+Limite assumée : le cookie ne se lit que sur ce déploiement. Il rattache un
+compte à une campagne, pas un utilisateur dans le temps à travers les deux
+domaines. Pour « campagne → compte » de façon fiable, il faudrait une table
+`clicks` dans le projet Supabase partagé.
 
 ---
 
@@ -278,6 +384,7 @@ code**. Aucun appel réseau n'est émis : les montants sont saisis à la main.
 | **CinetPay** (Wave, Orange, MTN, Moov) | Variables déclarées, **aucun appel** | `CASSER_METHODS` affiche les 4 moyens ; le montant est saisi au clavier |
 | **SMS Orange** | Variables déclarées, **aucun appel** | Écran `/notifications` : la table `notifications` reste vide |
 | **WhatsApp Business** | Variables déclarées, **aucun appel** | Idem |
+| **Notifications push (Web Push)** | Abonnement client et table en place, **aucun envoi** | Le service worker sait afficher ; rien ne déclenche l'envoi VAPID |
 | `CINETPAY_CALLBACK_URL` | Pointe vers `/api/payments/callback` | **Cette route n'existe pas** |
 
 Conséquences à connaître avant de faire une démonstration :

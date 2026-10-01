@@ -15,8 +15,16 @@ import { fileURLToPath } from "node:url";
 
 const OUT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public", "icons");
 
-/** Vert de marque #0F766E. */
-const BRAND = [15, 118, 110];
+/**
+ * Vert de marque.
+ *
+ * Doit rester aligne sur `BRAND_GREEN` de `lib/brand.ts`, qui porte la meme
+ * valeur que la landing page. Les deux depots ne partagent aucun code : sans
+ * ce rappel dans le commentaire, un futur changement de couleur decorrait
+ * l'icone de l'ecran d'accueil — le seul element de marque que le systeme
+ * affiche encore une fois l'application fermee.
+ */
+const BRAND = [0x12, 0x6c, 0x54];
 
 function crc32(buf) {
   let c;

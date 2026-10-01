@@ -14,6 +14,12 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isGuestOnlyPath, isPublicPath } from "@/lib/public-paths";
+import {
+  ATTRIBUTION_COOKIE,
+  extractAttribution,
+  hasAttributionParams,
+  isAttributionUsable,
+} from "@/lib/attribution";
 
 type CookiesToSet = { name: string; value: string; options: CookieOptions }[];
 
@@ -54,6 +60,49 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, search } = request.nextUrl;
 
+  /*
+   * Attribution de campagne — AVANT toute redirection.
+   *
+   * La landing (autre depot, autre deploiement) capte `utm_*`, `gclid` et
+   * `fbclid`, les conserve 30 jours, puis… s'arrete au bord : ce deploiement
+   * ne sait rien de la campagne qui a amene le visiteur. Or la seule facon de
+   * repondre a « combien de comptes viennent de WhatsApp » est de faire
+   * traverser le marqueur.
+   *
+   * Deux decisions :
+   *
+   * 1. **Avant** les redirections. Apres, `/login?redirect=/register` aurait
+   *    deja perdu les parametres — le middleware copie `pathname` et `search`
+   *    dans son URL cible, mais le visiteur ne doit pas etre redirige avant
+   *    qu'on ait note d'ou il vient.
+   *
+   * 2. **Une seule fois.** Le cookie dure 30 jours ; le reecrire a chaque
+   *    requete le renouvellerait indefiniment et ferait Vargas jusqu'a la fin
+   *    des temps. On n'ecrit donc que si le cookie est absent.
+   */
+  if (
+    !request.cookies.has(ATTRIBUTION_COOKIE) &&
+    hasAttributionParams(request.nextUrl.searchParams) &&
+    isAttributionUsable(extractAttribution(request.nextUrl.searchParams))
+  ) {
+    response.cookies.set(
+      ATTRIBUTION_COOKIE,
+      extractAttribution(request.nextUrl.searchParams),
+      {
+        path: "/",
+        // 30 jours : la meme duree que la landing. Une campagne plus courte ici
+        // perdrait les visiteurs qui reviennent installer leur application le
+        // lendemain.
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: "lax",
+        // Pas de `secure` en dur : le developpement tourne en HTTP sur
+        // localhost, ou un cookie `secure` n'est jamais renvoye. Vercel sert
+        // l'application en HTTPS, donc la production reste protegee.
+        secure: process.env.NODE_ENV === "production",
+      },
+    );
+  }
+
   // Session absente + route privee -> page de connexion.
   //
   // La racine (`/`) est volontairement exclue de ce renvoi : elle n'affiche
@@ -84,9 +133,30 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Tout sauf fichiers statiques : _next/image, _next/static,
-     * favicon.ico, et assets sous /public
+     * Tout sauf les fichiers statiques : `_next/image`, `_next/static`,
+     * `favicon.ico`, et assets sous /public
+     *
+     * ⚠ LE SW ET LE MANIFESTE SONT DANS LE MATCHER, VOLONTAIREMENT.
+     *
+     * C'est contre-intuitif — un fichier statique devrait etre exclu, comme
+     * les autres assets. Mais les exclure sur l'extension est impossible
+     * ici : `sw.js` EST un `.js`, et il serait donc capture par la meme
+     * regle que `/_next/static`. Consequence observee avant correction :
+     *
+     *   GET /sw.js  ->  307  ->  /login?redirect=%2Fsw.js
+     *
+     * Le service worker n'etait donc JAMAIS enregistre. Le navigateur le
+     * telecharge une fois, recoit une page de connexion HTML, et rejette
+     * l'enregistrement : aucune erreur visible, aucun warning en console sur
+     * un build de production. Toute la capacite hors-ligne et le bouton
+     * d'installation etaient simplement absents.
+     *
+     * Le manifeste etait redirige de la meme maniere, ce qui empechait
+     * l'installation de la PWA.
+     *
+     * On les laisse donc passer par le chemin public : ce sont des fichiers
+     * necessaires AU mecanisme de session, pas des pages protegees.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|webmanifest)$).*)",
   ],
 };
